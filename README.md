@@ -1,4 +1,8 @@
-# PaceFrame
+<p align="center">
+  <img src="pace-frame-logo.svg" alt="PaceFrame Logo" width="200">
+</p>
+
+<h1 align="center">PaceFrame</h1>
 
 Mobile app for sharing a customized image containing Strava activity data.
 

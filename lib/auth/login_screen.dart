@@ -21,7 +21,11 @@ class LoginScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.directions_bike, size: 80, color: Colors.orange),
+              Icon(
+                Icons.directions_bike,
+                size: 80,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(height: 24),
               Text(
                 'PaceFrame',

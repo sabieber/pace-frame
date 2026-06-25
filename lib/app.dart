@@ -1,6 +1,6 @@
 /// Root MaterialApp widget.
 ///
-/// Sets up theming (Strava-orange seed, Material 3, light + dark) and gates
+/// Sets up theming (brand blue seed, Material 3, light + dark) and gates
 /// the app on authentication state: shows a splash while the stored token
 /// is validated, the login screen when unauthenticated, and the activity
 /// list when authenticated.
@@ -12,6 +12,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'activities/activity_list_screen.dart';
 import 'auth/login_screen.dart';
 import 'providers.dart';
+
+const _brandBlue = Color(0xFF0758B8);
+const _brandRed = Color(0xFFF44405);
 
 class PaceFrameApp extends ConsumerWidget {
   const PaceFrameApp({super.key});
@@ -25,16 +28,16 @@ class PaceFrameApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFFC4C02),
+          seedColor: _brandBlue,
           brightness: Brightness.light,
-        ),
+        ).copyWith(secondary: _brandRed, tertiary: _brandRed),
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFFC4C02),
+          seedColor: _brandBlue,
           brightness: Brightness.dark,
-        ),
+        ).copyWith(secondary: _brandRed, tertiary: _brandRed),
         useMaterial3: true,
       ),
       home: authState.when(
@@ -52,14 +55,18 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.directions_bike, size: 64, color: Colors.orange),
-            SizedBox(height: 16),
-            CircularProgressIndicator(),
+            Icon(
+              Icons.directions_bike,
+              size: 64,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 16),
+            const CircularProgressIndicator(),
           ],
         ),
       ),
