@@ -432,6 +432,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       labelColor: frameWidget.titleColor,
       valueColor: frameWidget.valueColor,
       iconColor: frameWidget.iconColor,
+      editMode: _editMode,
     );
   }
 

@@ -48,6 +48,18 @@ class StatBlockWidget extends StatelessWidget {
       children: [
         Container(
           padding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 8 * scale),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: editMode
+                ? Border.all(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    width: 1,
+                  )
+                : null,
+            color: editMode
+                ? Colors.black.withValues(alpha: 0.2)
+                : null,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
