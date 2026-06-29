@@ -903,6 +903,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     );
     var trimEndpoints = routeWidget.trimEndpoints;
     var routeColor = routeWidget.routeColor;
+    var scale = routeWidget.scale;
 
     showModalBottomSheet(
       context: context,
@@ -926,6 +927,12 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                   value: trimEndpoints,
                   onChanged: (value) =>
                       setModalState(() => trimEndpoints = value),
+                ),
+                const Divider(),
+                _ScaleSlider(
+                  value: scale,
+                  onChanged: (value) =>
+                      setModalState(() => scale = value),
                 ),
                 const Divider(),
                 Padding(
@@ -960,6 +967,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                             routeWidget.copyWith(
                               trimEndpoints: trimEndpoints,
                               routeColor: routeColor,
+                              scale: scale,
                             ),
                           );
                       Navigator.pop(ctx);
@@ -984,6 +992,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     var iconColor = statWidget.iconColor;
     var titleColor = statWidget.titleColor;
     var valueColor = statWidget.valueColor;
+    var scale = statWidget.scale;
 
     showModalBottomSheet(
       context: context,
@@ -1017,6 +1026,12 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                     value: showIcon,
                     onChanged: (value) =>
                         setModalState(() => showIcon = value),
+                  ),
+                  const Divider(),
+                  _ScaleSlider(
+                    value: scale,
+                    onChanged: (value) =>
+                        setModalState(() => scale = value),
                   ),
                   const Divider(),
                   Padding(
@@ -1082,6 +1097,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                                 iconColor: iconColor,
                                 titleColor: titleColor,
                                 valueColor: valueColor,
+                                scale: scale,
                               ),
                             );
                         Navigator.pop(ctx);
@@ -1229,6 +1245,46 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
 // =============================================================================
 // Private widgets
 // =============================================================================
+
+class _ScaleSlider extends StatelessWidget {
+  const _ScaleSlider({required this.value, required this.onChanged});
+
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Scale',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              Text(
+                '${value.toStringAsFixed(2)}x',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+          Slider(
+            value: value,
+            min: _kMinScale,
+            max: _kMaxScale,
+            divisions: ((_kMaxScale - _kMinScale) / 0.05).round(),
+            label: '${value.toStringAsFixed(2)}x',
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _ColorListTile extends StatelessWidget {
   const _ColorListTile({
