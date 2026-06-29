@@ -69,23 +69,23 @@ class $ActivitiesTable extends Activities
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _avgWattsMeta = const VerificationMeta(
-    'avgWatts',
+  static const VerificationMeta _averageWattsMeta = const VerificationMeta(
+    'averageWatts',
   );
   @override
   late final GeneratedColumn<double> averageWatts = GeneratedColumn<double>(
-    'avg_watts',
+    'average_watts',
     aliasedName,
     true,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _avgHeartrateMeta = const VerificationMeta(
-    'avgHeartrate',
+  static const VerificationMeta _averageHeartRateMeta = const VerificationMeta(
+    'averageHeartRate',
   );
   @override
   late final GeneratedColumn<double> averageHeartRate = GeneratedColumn<double>(
-    'avg_heartrate',
+    'average_heart_rate',
     aliasedName,
     true,
     type: DriftSqlType.double,
@@ -181,18 +181,21 @@ class $ActivitiesTable extends Activities
     } else if (isInserting) {
       context.missing(_movingTimeMeta);
     }
-    if (data.containsKey('avg_watts')) {
+    if (data.containsKey('average_watts')) {
       context.handle(
-        _avgWattsMeta,
-        averageWatts.isAcceptableOrUnknown(data['avg_watts']!, _avgWattsMeta),
+        _averageWattsMeta,
+        averageWatts.isAcceptableOrUnknown(
+          data['average_watts']!,
+          _averageWattsMeta,
+        ),
       );
     }
-    if (data.containsKey('avg_heartrate')) {
+    if (data.containsKey('average_heart_rate')) {
       context.handle(
-        _avgHeartrateMeta,
+        _averageHeartRateMeta,
         averageHeartRate.isAcceptableOrUnknown(
-          data['avg_heartrate']!,
-          _avgHeartrateMeta,
+          data['average_heart_rate']!,
+          _averageHeartRateMeta,
         ),
       );
     }
@@ -247,13 +250,13 @@ class $ActivitiesTable extends Activities
         DriftSqlType.int,
         data['${effectivePrefix}moving_time'],
       )!,
-      avgWatts: attachedDatabase.typeMapping.read(
+      averageWatts: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
-        data['${effectivePrefix}avg_watts'],
+        data['${effectivePrefix}average_watts'],
       ),
-      avgHeartrate: attachedDatabase.typeMapping.read(
+      averageHeartRate: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
-        data['${effectivePrefix}avg_heartrate'],
+        data['${effectivePrefix}average_heart_rate'],
       ),
       elevationGain: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
@@ -279,8 +282,8 @@ class Activity extends DataClass implements Insertable<Activity> {
   final DateTime startDate;
   final double distance;
   final int movingTime;
-  final double? avgWatts;
-  final double? avgHeartrate;
+  final double? averageWatts;
+  final double? averageHeartRate;
   final double? elevationGain;
   final String? summaryPolyline;
   const Activity({
@@ -290,8 +293,8 @@ class Activity extends DataClass implements Insertable<Activity> {
     required this.startDate,
     required this.distance,
     required this.movingTime,
-    this.avgWatts,
-    this.avgHeartrate,
+    this.averageWatts,
+    this.averageHeartRate,
     this.elevationGain,
     this.summaryPolyline,
   });
@@ -304,11 +307,11 @@ class Activity extends DataClass implements Insertable<Activity> {
     map['start_date'] = Variable<DateTime>(startDate);
     map['distance'] = Variable<double>(distance);
     map['moving_time'] = Variable<int>(movingTime);
-    if (!nullToAbsent || avgWatts != null) {
-      map['avg_watts'] = Variable<double>(avgWatts);
+    if (!nullToAbsent || averageWatts != null) {
+      map['average_watts'] = Variable<double>(averageWatts);
     }
-    if (!nullToAbsent || avgHeartrate != null) {
-      map['avg_heartrate'] = Variable<double>(avgHeartrate);
+    if (!nullToAbsent || averageHeartRate != null) {
+      map['average_heart_rate'] = Variable<double>(averageHeartRate);
     }
     if (!nullToAbsent || elevationGain != null) {
       map['elevation_gain'] = Variable<double>(elevationGain);
@@ -327,12 +330,12 @@ class Activity extends DataClass implements Insertable<Activity> {
       startDate: Value(startDate),
       distance: Value(distance),
       movingTime: Value(movingTime),
-      avgWatts: avgWatts == null && nullToAbsent
+      averageWatts: averageWatts == null && nullToAbsent
           ? const Value.absent()
-          : Value(avgWatts),
-      avgHeartrate: avgHeartrate == null && nullToAbsent
+          : Value(averageWatts),
+      averageHeartRate: averageHeartRate == null && nullToAbsent
           ? const Value.absent()
-          : Value(avgHeartrate),
+          : Value(averageHeartRate),
       elevationGain: elevationGain == null && nullToAbsent
           ? const Value.absent()
           : Value(elevationGain),
@@ -354,8 +357,8 @@ class Activity extends DataClass implements Insertable<Activity> {
       startDate: serializer.fromJson<DateTime>(json['startDate']),
       distance: serializer.fromJson<double>(json['distance']),
       movingTime: serializer.fromJson<int>(json['movingTime']),
-      avgWatts: serializer.fromJson<double?>(json['avgWatts']),
-      avgHeartrate: serializer.fromJson<double?>(json['avgHeartrate']),
+      averageWatts: serializer.fromJson<double?>(json['averageWatts']),
+      averageHeartRate: serializer.fromJson<double?>(json['averageHeartRate']),
       elevationGain: serializer.fromJson<double?>(json['elevationGain']),
       summaryPolyline: serializer.fromJson<String?>(json['summaryPolyline']),
     );
@@ -370,8 +373,8 @@ class Activity extends DataClass implements Insertable<Activity> {
       'startDate': serializer.toJson<DateTime>(startDate),
       'distance': serializer.toJson<double>(distance),
       'movingTime': serializer.toJson<int>(movingTime),
-      'avgWatts': serializer.toJson<double?>(avgWatts),
-      'avgHeartrate': serializer.toJson<double?>(avgHeartrate),
+      'averageWatts': serializer.toJson<double?>(averageWatts),
+      'averageHeartRate': serializer.toJson<double?>(averageHeartRate),
       'elevationGain': serializer.toJson<double?>(elevationGain),
       'summaryPolyline': serializer.toJson<String?>(summaryPolyline),
     };
@@ -384,8 +387,8 @@ class Activity extends DataClass implements Insertable<Activity> {
     DateTime? startDate,
     double? distance,
     int? movingTime,
-    Value<double?> avgWatts = const Value.absent(),
-    Value<double?> avgHeartrate = const Value.absent(),
+    Value<double?> averageWatts = const Value.absent(),
+    Value<double?> averageHeartRate = const Value.absent(),
     Value<double?> elevationGain = const Value.absent(),
     Value<String?> summaryPolyline = const Value.absent(),
   }) => Activity(
@@ -395,8 +398,10 @@ class Activity extends DataClass implements Insertable<Activity> {
     startDate: startDate ?? this.startDate,
     distance: distance ?? this.distance,
     movingTime: movingTime ?? this.movingTime,
-    avgWatts: avgWatts.present ? avgWatts.value : this.avgWatts,
-    avgHeartrate: avgHeartrate.present ? avgHeartrate.value : this.avgHeartrate,
+    averageWatts: averageWatts.present ? averageWatts.value : this.averageWatts,
+    averageHeartRate: averageHeartRate.present
+        ? averageHeartRate.value
+        : this.averageHeartRate,
     elevationGain: elevationGain.present
         ? elevationGain.value
         : this.elevationGain,
@@ -414,10 +419,12 @@ class Activity extends DataClass implements Insertable<Activity> {
       movingTime: data.movingTime.present
           ? data.movingTime.value
           : this.movingTime,
-      avgWatts: data.avgWatts.present ? data.avgWatts.value : this.avgWatts,
-      avgHeartrate: data.avgHeartrate.present
-          ? data.avgHeartrate.value
-          : this.avgHeartrate,
+      averageWatts: data.averageWatts.present
+          ? data.averageWatts.value
+          : this.averageWatts,
+      averageHeartRate: data.averageHeartRate.present
+          ? data.averageHeartRate.value
+          : this.averageHeartRate,
       elevationGain: data.elevationGain.present
           ? data.elevationGain.value
           : this.elevationGain,
@@ -436,8 +443,8 @@ class Activity extends DataClass implements Insertable<Activity> {
           ..write('startDate: $startDate, ')
           ..write('distance: $distance, ')
           ..write('movingTime: $movingTime, ')
-          ..write('avgWatts: $avgWatts, ')
-          ..write('avgHeartrate: $avgHeartrate, ')
+          ..write('averageWatts: $averageWatts, ')
+          ..write('averageHeartRate: $averageHeartRate, ')
           ..write('elevationGain: $elevationGain, ')
           ..write('summaryPolyline: $summaryPolyline')
           ..write(')'))
@@ -452,8 +459,8 @@ class Activity extends DataClass implements Insertable<Activity> {
     startDate,
     distance,
     movingTime,
-    avgWatts,
-    avgHeartrate,
+    averageWatts,
+    averageHeartRate,
     elevationGain,
     summaryPolyline,
   );
@@ -467,8 +474,8 @@ class Activity extends DataClass implements Insertable<Activity> {
           other.startDate == this.startDate &&
           other.distance == this.distance &&
           other.movingTime == this.movingTime &&
-          other.avgWatts == this.avgWatts &&
-          other.avgHeartrate == this.avgHeartrate &&
+          other.averageWatts == this.averageWatts &&
+          other.averageHeartRate == this.averageHeartRate &&
           other.elevationGain == this.elevationGain &&
           other.summaryPolyline == this.summaryPolyline);
 }
@@ -480,8 +487,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   final Value<DateTime> startDate;
   final Value<double> distance;
   final Value<int> movingTime;
-  final Value<double?> avgWatts;
-  final Value<double?> avgHeartrate;
+  final Value<double?> averageWatts;
+  final Value<double?> averageHeartRate;
   final Value<double?> elevationGain;
   final Value<String?> summaryPolyline;
   const ActivitiesCompanion({
@@ -491,8 +498,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.startDate = const Value.absent(),
     this.distance = const Value.absent(),
     this.movingTime = const Value.absent(),
-    this.avgWatts = const Value.absent(),
-    this.avgHeartrate = const Value.absent(),
+    this.averageWatts = const Value.absent(),
+    this.averageHeartRate = const Value.absent(),
     this.elevationGain = const Value.absent(),
     this.summaryPolyline = const Value.absent(),
   });
@@ -503,8 +510,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     required DateTime startDate,
     required double distance,
     required int movingTime,
-    this.avgWatts = const Value.absent(),
-    this.avgHeartrate = const Value.absent(),
+    this.averageWatts = const Value.absent(),
+    this.averageHeartRate = const Value.absent(),
     this.elevationGain = const Value.absent(),
     this.summaryPolyline = const Value.absent(),
   }) : name = Value(name),
@@ -519,8 +526,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Expression<DateTime>? startDate,
     Expression<double>? distance,
     Expression<int>? movingTime,
-    Expression<double>? avgWatts,
-    Expression<double>? avgHeartrate,
+    Expression<double>? averageWatts,
+    Expression<double>? averageHeartRate,
     Expression<double>? elevationGain,
     Expression<String>? summaryPolyline,
   }) {
@@ -531,8 +538,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       if (startDate != null) 'start_date': startDate,
       if (distance != null) 'distance': distance,
       if (movingTime != null) 'moving_time': movingTime,
-      if (avgWatts != null) 'avg_watts': avgWatts,
-      if (avgHeartrate != null) 'avg_heartrate': avgHeartrate,
+      if (averageWatts != null) 'average_watts': averageWatts,
+      if (averageHeartRate != null) 'average_heart_rate': averageHeartRate,
       if (elevationGain != null) 'elevation_gain': elevationGain,
       if (summaryPolyline != null) 'summary_polyline': summaryPolyline,
     });
@@ -545,8 +552,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Value<DateTime>? startDate,
     Value<double>? distance,
     Value<int>? movingTime,
-    Value<double?>? avgWatts,
-    Value<double?>? avgHeartrate,
+    Value<double?>? averageWatts,
+    Value<double?>? averageHeartRate,
     Value<double?>? elevationGain,
     Value<String?>? summaryPolyline,
   }) {
@@ -557,8 +564,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       startDate: startDate ?? this.startDate,
       distance: distance ?? this.distance,
       movingTime: movingTime ?? this.movingTime,
-      avgWatts: avgWatts ?? this.avgWatts,
-      avgHeartrate: avgHeartrate ?? this.avgHeartrate,
+      averageWatts: averageWatts ?? this.averageWatts,
+      averageHeartRate: averageHeartRate ?? this.averageHeartRate,
       elevationGain: elevationGain ?? this.elevationGain,
       summaryPolyline: summaryPolyline ?? this.summaryPolyline,
     );
@@ -585,11 +592,11 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     if (movingTime.present) {
       map['moving_time'] = Variable<int>(movingTime.value);
     }
-    if (avgWatts.present) {
-      map['avg_watts'] = Variable<double>(avgWatts.value);
+    if (averageWatts.present) {
+      map['average_watts'] = Variable<double>(averageWatts.value);
     }
-    if (avgHeartrate.present) {
-      map['avg_heartrate'] = Variable<double>(avgHeartrate.value);
+    if (averageHeartRate.present) {
+      map['average_heart_rate'] = Variable<double>(averageHeartRate.value);
     }
     if (elevationGain.present) {
       map['elevation_gain'] = Variable<double>(elevationGain.value);
@@ -609,8 +616,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
           ..write('startDate: $startDate, ')
           ..write('distance: $distance, ')
           ..write('movingTime: $movingTime, ')
-          ..write('avgWatts: $avgWatts, ')
-          ..write('avgHeartrate: $avgHeartrate, ')
+          ..write('averageWatts: $averageWatts, ')
+          ..write('averageHeartRate: $averageHeartRate, ')
           ..write('elevationGain: $elevationGain, ')
           ..write('summaryPolyline: $summaryPolyline')
           ..write(')'))
@@ -637,8 +644,8 @@ typedef $$ActivitiesTableCreateCompanionBuilder =
       required DateTime startDate,
       required double distance,
       required int movingTime,
-      Value<double?> avgWatts,
-      Value<double?> avgHeartrate,
+      Value<double?> averageWatts,
+      Value<double?> averageHeartRate,
       Value<double?> elevationGain,
       Value<String?> summaryPolyline,
     });
@@ -650,8 +657,8 @@ typedef $$ActivitiesTableUpdateCompanionBuilder =
       Value<DateTime> startDate,
       Value<double> distance,
       Value<int> movingTime,
-      Value<double?> avgWatts,
-      Value<double?> avgHeartrate,
+      Value<double?> averageWatts,
+      Value<double?> averageHeartRate,
       Value<double?> elevationGain,
       Value<String?> summaryPolyline,
     });
@@ -695,12 +702,12 @@ class $$ActivitiesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<double> get avgWatts => $composableBuilder(
+  ColumnFilters<double> get averageWatts => $composableBuilder(
     column: $table.averageWatts,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<double> get avgHeartrate => $composableBuilder(
+  ColumnFilters<double> get averageHeartRate => $composableBuilder(
     column: $table.averageHeartRate,
     builder: (column) => ColumnFilters(column),
   );
@@ -755,12 +762,12 @@ class $$ActivitiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<double> get avgWatts => $composableBuilder(
+  ColumnOrderings<double> get averageWatts => $composableBuilder(
     column: $table.averageWatts,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<double> get avgHeartrate => $composableBuilder(
+  ColumnOrderings<double> get averageHeartRate => $composableBuilder(
     column: $table.averageHeartRate,
     builder: (column) => ColumnOrderings(column),
   );
@@ -805,10 +812,12 @@ class $$ActivitiesTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<double> get avgWatts =>
-      $composableBuilder(column: $table.averageWatts, builder: (column) => column);
+  GeneratedColumn<double> get averageWatts => $composableBuilder(
+    column: $table.averageWatts,
+    builder: (column) => column,
+  );
 
-  GeneratedColumn<double> get avgHeartrate => $composableBuilder(
+  GeneratedColumn<double> get averageHeartRate => $composableBuilder(
     column: $table.averageHeartRate,
     builder: (column) => column,
   );
@@ -858,8 +867,8 @@ class $$ActivitiesTableTableManager
                 Value<DateTime> startDate = const Value.absent(),
                 Value<double> distance = const Value.absent(),
                 Value<int> movingTime = const Value.absent(),
-                Value<double?> avgWatts = const Value.absent(),
-                Value<double?> avgHeartrate = const Value.absent(),
+                Value<double?> averageWatts = const Value.absent(),
+                Value<double?> averageHeartRate = const Value.absent(),
                 Value<double?> elevationGain = const Value.absent(),
                 Value<String?> summaryPolyline = const Value.absent(),
               }) => ActivitiesCompanion(
@@ -869,8 +878,8 @@ class $$ActivitiesTableTableManager
                 startDate: startDate,
                 distance: distance,
                 movingTime: movingTime,
-                avgWatts: avgWatts,
-                avgHeartrate: avgHeartrate,
+                averageWatts: averageWatts,
+                averageHeartRate: averageHeartRate,
                 elevationGain: elevationGain,
                 summaryPolyline: summaryPolyline,
               ),
@@ -882,8 +891,8 @@ class $$ActivitiesTableTableManager
                 required DateTime startDate,
                 required double distance,
                 required int movingTime,
-                Value<double?> avgWatts = const Value.absent(),
-                Value<double?> avgHeartrate = const Value.absent(),
+                Value<double?> averageWatts = const Value.absent(),
+                Value<double?> averageHeartRate = const Value.absent(),
                 Value<double?> elevationGain = const Value.absent(),
                 Value<String?> summaryPolyline = const Value.absent(),
               }) => ActivitiesCompanion.insert(
@@ -893,8 +902,8 @@ class $$ActivitiesTableTableManager
                 startDate: startDate,
                 distance: distance,
                 movingTime: movingTime,
-                avgWatts: avgWatts,
-                avgHeartrate: avgHeartrate,
+                averageWatts: averageWatts,
+                averageHeartRate: averageHeartRate,
                 elevationGain: elevationGain,
                 summaryPolyline: summaryPolyline,
               ),

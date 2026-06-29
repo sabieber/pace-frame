@@ -51,8 +51,8 @@ void main() {
 
       final row = await (db.select(db.activities)..where((a) => a.id.equals(2)))
           .getSingle();
-      expect(row.avgWatts, isNull);
-      expect(row.avgHeartrate, isNull);
+      expect(row.averageWatts, isNull);
+      expect(row.averageHeartRate, isNull);
       expect(row.elevationGain, isNull);
       expect(row.summaryPolyline, isNull);
     });
@@ -126,16 +126,16 @@ void main() {
           startDate: DateTime(2025, 6, 15),
           distance: 8000,
           movingTime: 2400,
-          avgWatts: const Value(245.5),
-          avgHeartrate: const Value(162.0),
+          averageWatts: const Value(245.5),
+          averageHeartRate: const Value(162.0),
           elevationGain: const Value(120.3),
         ),
       );
 
       final row = await (db.select(db.activities)..where((a) => a.id.equals(3)))
           .getSingle();
-      expect(row.avgWatts, 245.5);
-      expect(row.avgHeartrate, 162.0);
+      expect(row.averageWatts, 245.5);
+      expect(row.averageHeartRate, 162.0);
       expect(row.elevationGain, 120.3);
     });
 

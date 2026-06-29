@@ -184,13 +184,13 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       case StatBlockType.avgWatts:
         return StatBlockWidget(
           label: 'Avg Power',
-          value: a.avgWatts != null ? '${a.avgWatts!.round()} W' : '—',
+          value: a.averageWatts != null ? '${a.averageWatts!.round()} W' : '—',
         );
       case StatBlockType.avgHr:
         return StatBlockWidget(
           label: 'Avg HR',
-          value: a.avgHeartrate != null
-              ? '${a.avgHeartrate!.round()} bpm'
+          value: a.averageHeartRate != null
+              ? '${a.averageHeartRate!.round()} bpm'
               : '—',
         );
       case StatBlockType.elevation:
