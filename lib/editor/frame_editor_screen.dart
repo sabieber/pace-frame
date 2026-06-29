@@ -1,10 +1,9 @@
 /// Frame editor screen — compose a shareable image from a Strava activity.
 ///
 /// Renders a fixed-size preview inside a [RepaintBoundary] with a colored
-/// or image background, an optional route outline (via [RoutePainter]),
-/// and freely-positioned stat widgets. A bottom toolbar lets the user
-/// switch aspect-ratio presets, pick backgrounds, add new widgets, and
-/// toggle the route.
+/// or image background, and freely-positioned stat and route widgets.
+/// A bottom toolbar lets the user switch aspect-ratio presets, pick
+/// backgrounds, and add new widgets.
 ///
 /// ## Widget interaction
 ///
@@ -27,8 +26,8 @@
 ///
 /// Export disables [_editMode], waits for a frame paint, captures the
 /// [RepaintBoundary] at the target pixel ratio and shares via the
-/// system share sheet. Edit-mode chrome (delete buttons) is hidden
-/// during capture.
+/// system share sheet. Edit-mode chrome (delete buttons, settings
+/// buttons) is hidden during capture.
 library;
 
 import 'dart:io';
@@ -43,7 +42,7 @@ import '../models/aspect_ratio_preset.dart';
 import '../models/frame_config.dart';
 import 'detail_polyline_provider.dart';
 import 'frame_config_provider.dart';
-import 'route_painter.dart';
+import 'route_widget.dart';
 import 'stat_block_widget.dart';
 
 class FrameEditorScreen extends ConsumerStatefulWidget {
@@ -135,6 +134,8 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       MediaQuery.of(context).size.width - 32,
     );
     final polylineAsync = ref.watch(detailPolylineProvider(widget.activity.id));
+    final resolvedPolyline = _resolvePolyline(polylineAsync);
+    final routeWidgetSize = _routeWidgetSize(logicalSize);
 
     return Center(
       child: RepaintBoundary(
@@ -147,46 +148,19 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
               fit: StackFit.expand,
               children: [
                 _buildBackground(config),
-                if (config.showRoute)
-                  polylineAsync.when(
-                    data: (polyline) {
-                      if (polyline == null) return const SizedBox.shrink();
-                      return Positioned.fill(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: RoutePainter(
-                            polyline: polyline,
-                            trimEndpoints: config.trimEndpoints,
-                          ),
-                        ),
-                      );
-                    },
-                    loading: () => widget.activity.summaryPolyline != null
-                        ? Positioned.fill(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: RoutePainter(
-                                polyline: widget.activity.summaryPolyline!,
-                                trimEndpoints: config.trimEndpoints,
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                    error: (_, _) => widget.activity.summaryPolyline != null
-                        ? Positioned.fill(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: RoutePainter(
-                                polyline: widget.activity.summaryPolyline!,
-                                trimEndpoints: config.trimEndpoints,
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
+                for (final frameWidget in config.widgets)
+                  if (frameWidget.type == FrameWidgetType.route &&
+                      resolvedPolyline != null)
+                    _buildDraggableWidget(
+                      frameWidget,
+                      logicalSize,
+                      polyline: resolvedPolyline,
+                      routeWidgetSize: routeWidgetSize,
+                    ),
                 Positioned(left: 0, right: 0, top: 0, child: _buildHeader()),
-                for (final widget in config.widgets)
-                  _buildDraggableWidget(widget, logicalSize),
+                for (final frameWidget in config.widgets)
+                  if (frameWidget.type != FrameWidgetType.route)
+                    _buildDraggableWidget(frameWidget, logicalSize),
                 if (_snapGuides.isNotEmpty)
                   Positioned.fill(
                     child: IgnorePointer(
@@ -201,6 +175,16 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
         ),
       ),
     );
+  }
+
+  String? _resolvePolyline(AsyncValue<String?> polylineAsync) {
+    return polylineAsync.whenOrNull(data: (polyline) => polyline) ??
+        widget.activity.summaryPolyline;
+  }
+
+  Size _routeWidgetSize(Size logicalSize) {
+    final dimension = logicalSize.width * _kRouteSizeRatio;
+    return Size(dimension, dimension);
   }
 
   Widget _buildBackground(FrameConfig config) {
@@ -236,22 +220,27 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
   // Draggable widget
   // ---------------------------------------------------------------------------
 
-  /// Wraps a [StatBlockWidget] in a [Positioned] + [GestureDetector] that
+  /// Wraps a widget in a [Positioned] + [GestureDetector] that
   /// handles drag-and-drop with bounds clamping and snap guide display.
-  Widget _buildDraggableWidget(FrameWidget fw, Size logicalSize) {
-    final baseDx = fw.position.dx * logicalSize.width;
-    final baseDy = fw.position.dy * logicalSize.height;
-    final dx = fw.id == _draggingId ? baseDx + _dragDx : baseDx;
-    final dy = fw.id == _draggingId ? baseDy + _dragDy : baseDy;
+  Widget _buildDraggableWidget(
+    FrameWidget widget,
+    Size logicalSize, {
+    String? polyline,
+    Size? routeWidgetSize,
+  }) {
+    final baseDx = widget.position.dx * logicalSize.width;
+    final baseDy = widget.position.dy * logicalSize.height;
+    final dx = widget.id == _draggingId ? baseDx + _dragDx : baseDx;
+    final dy = widget.id == _draggingId ? baseDy + _dragDy : baseDy;
 
-    final key = _widgetKeys.putIfAbsent(fw.id, GlobalKey.new);
+    final key = _widgetKeys.putIfAbsent(widget.id, GlobalKey.new);
 
     return Positioned(
-      key: ValueKey(fw.id),
+      key: ValueKey(widget.id),
       left: dx,
       top: dy,
       child: GestureDetector(
-        onPanStart: (_) => _onDragStart(fw.id, key),
+        onPanStart: (_) => _onDragStart(widget.id, key),
         onPanUpdate: (details) => _onDragUpdate(
           details,
           baseDx: baseDx,
@@ -259,24 +248,52 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
           logicalSize: logicalSize,
         ),
         onPanEnd: (_) => _onDragEnd(
-          fw.id,
+          widget.id,
           baseDx: baseDx,
           baseDy: baseDy,
           logicalSize: logicalSize,
         ),
         child: KeyedSubtree(
           key: key,
-          child: StatBlockWidget(
-            label: _labelFor(fw.type),
-            value: _valueFor(fw.type),
-            editMode: _editMode,
-            onDelete: _editMode
-                ? () =>
-                      ref.read(frameConfigProvider.notifier).removeWidget(fw.id)
-                : null,
+          child: _buildWidgetContent(
+            widget,
+            polyline: polyline,
+            routeWidgetSize: routeWidgetSize,
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildWidgetContent(
+    FrameWidget widget, {
+    String? polyline,
+    Size? routeWidgetSize,
+  }) {
+    if (widget.type == FrameWidgetType.route) {
+      return RouteWidget(
+        polyline: polyline!,
+        size: routeWidgetSize!,
+        trimEndpoints: widget.trimEndpoints,
+        editMode: _editMode,
+        onDelete: _editMode
+            ? () => ref.read(frameConfigProvider.notifier).removeWidget(widget.id)
+            : null,
+        onSettings: _editMode
+            ? () {
+                final config = ref.read(frameConfigProvider);
+                _showRouteSettings(config, widget.id);
+              }
+            : null,
+      );
+    }
+    return StatBlockWidget(
+      label: _labelFor(widget.type),
+      value: _valueFor(widget.type),
+      editMode: _editMode,
+      onDelete: _editMode
+          ? () => ref.read(frameConfigProvider.notifier).removeWidget(widget.id)
+          : null,
     );
   }
 
@@ -481,42 +498,45 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
   // Stat block display helpers
   // ---------------------------------------------------------------------------
 
-  String _labelFor(StatBlockType type) {
+  String _labelFor(FrameWidgetType type) {
     return switch (type) {
-      StatBlockType.distance => 'Distance',
-      StatBlockType.duration => 'Duration',
-      StatBlockType.avgPace => 'Pace',
-      StatBlockType.avgWatts => 'Avg Power',
-      StatBlockType.avgHr => 'Avg HR',
-      StatBlockType.elevation => 'Elevation',
+      FrameWidgetType.distance => 'Distance',
+      FrameWidgetType.duration => 'Duration',
+      FrameWidgetType.averagePace => 'Pace',
+      FrameWidgetType.averageWatts => 'Avg Power',
+      FrameWidgetType.averageHeartRate => 'Avg HR',
+      FrameWidgetType.elevation => 'Elevation',
+      FrameWidgetType.route => 'Route',
     };
   }
 
-  String _valueFor(StatBlockType type) {
+  String _valueFor(FrameWidgetType type) {
     final activity = widget.activity;
     switch (type) {
-      case StatBlockType.distance:
+      case FrameWidgetType.distance:
         return '${(activity.distance / 1000).toStringAsFixed(1)} km';
-      case StatBlockType.duration:
+      case FrameWidgetType.duration:
         return _formatDuration(activity.movingTime);
-      case StatBlockType.avgPace:
+      case FrameWidgetType.averagePace:
         if (activity.distance <= 0) return '—';
         final pace = activity.movingTime / (activity.distance / 1000);
         final mins = pace ~/ 60;
         final secs = (pace % 60).round();
         return '$mins:${secs.toString().padLeft(2, '0')} /km';
-      case StatBlockType.avgWatts:
+      case FrameWidgetType.averageWatts:
         return activity.averageWatts != null
             ? '${activity.averageWatts!.round()} W'
             : '—';
-      case StatBlockType.avgHr:
+      case FrameWidgetType.averageHeartRate:
         return activity.averageHeartRate != null
             ? '${activity.averageHeartRate!.round()} bpm'
             : '—';
-      case StatBlockType.elevation:
+      case FrameWidgetType.elevation:
         return activity.elevationGain != null
             ? '${activity.elevationGain!.round()} m'
             : '—';
+      case FrameWidgetType.route:
+        return '';
     }
   }
 
@@ -548,11 +568,6 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
             label: 'Add',
             onTap: () => _showAddWidgetSheet(context, config),
           ),
-          _ToolbarButton(
-            icon: config.showRoute ? Icons.route : Icons.route_outlined,
-            label: 'Route',
-            onTap: () => _showRouteOptions(context, config),
-          ),
         ],
       ),
     );
@@ -560,13 +575,13 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
 
   void _showAddWidgetSheet(BuildContext context, FrameConfig config) {
     final presentTypes = config.widgets.map((widget) => widget.type).toSet();
-    final available = StatBlockType.values
+    final available = FrameWidgetType.values
         .where((type) => !presentTypes.contains(type))
         .toList();
 
     if (available.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All stat blocks are already added')),
+        const SnackBar(content: Text('All widgets are already added')),
       );
       return;
     }
@@ -587,6 +602,11 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
             ),
             ...available.map((type) {
               return ListTile(
+                leading: Icon(
+                  type == FrameWidgetType.route
+                      ? Icons.route
+                      : Icons.text_fields,
+                ),
                 title: Text(_labelFor(type)),
                 onTap: () {
                   ref.read(frameConfigProvider.notifier).addWidget(type);
@@ -625,9 +645,12 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     );
   }
 
-  void _showRouteOptions(BuildContext context, FrameConfig config) {
-    var showRoute = config.showRoute;
-    var trimEndpoints = config.trimEndpoints;
+  void _showRouteSettings(FrameConfig config, int routeWidgetId) {
+    final routeWidget = config.widgets.firstWhere(
+      (widget) => widget.id == routeWidgetId,
+    );
+    var trimEndpoints = routeWidget.trimEndpoints;
+
     showModalBottomSheet(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -640,14 +663,9 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Text(
-                    'Route Options',
+                    'Route Settings',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
-                ),
-                SwitchListTile(
-                  title: const Text('Show Route'),
-                  value: showRoute,
-                  onChanged: (value) => setModalState(() => showRoute = value),
                 ),
                 SwitchListTile(
                   title: const Text('Trim Endpoints'),
@@ -662,11 +680,9 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                     onPressed: () {
                       ref
                           .read(frameConfigProvider.notifier)
-                          .update(
-                            config.copyWith(
-                              showRoute: showRoute,
-                              trimEndpoints: trimEndpoints,
-                            ),
+                          .updateWidget(
+                            routeWidgetId,
+                            routeWidget.copyWith(trimEndpoints: trimEndpoints),
                           );
                       Navigator.pop(ctx);
                     },
@@ -909,6 +925,9 @@ const _kSnapReleaseThreshold = 3.0;
 /// Cumulative drag distance (px) required before snap guide detection
 /// activates. Prevents spurious guides on touch-down.
 const _kSnapOnsetThreshold = 8.0;
+
+/// Route widget size as a fraction of the frame's logical width.
+const _kRouteSizeRatio = 0.55;
 
 /// Axis of a snap guide line.
 enum _SnapAxis { vertical, horizontal }

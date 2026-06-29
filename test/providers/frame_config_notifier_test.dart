@@ -33,7 +33,6 @@ void main() {
       const newConfig = FrameConfig(
         activityId: 42,
         aspectRatio: AspectRatioPreset.post1x1,
-        showRoute: false,
       );
 
       container.read(frameConfigProvider.notifier).update(newConfig);
@@ -41,7 +40,6 @@ void main() {
       final config = container.read(frameConfigProvider);
       expect(config.activityId, 42);
       expect(config.aspectRatio, AspectRatioPreset.post1x1);
-      expect(config.showRoute, isFalse);
     });
 
     test('multiple updates accumulate correctly', () {
@@ -62,17 +60,17 @@ void main() {
     group('addWidget', () {
       test('adds a widget to the list', () {
         container.read(frameConfigProvider.notifier).addWidget(
-          StatBlockType.distance,
+          FrameWidgetType.distance,
         );
 
         final config = container.read(frameConfigProvider);
         expect(config.widgets, hasLength(1));
-        expect(config.widgets.first.type, StatBlockType.distance);
+        expect(config.widgets.first.type, FrameWidgetType.distance);
       });
 
       test('new widget has default center position', () {
         container.read(frameConfigProvider.notifier).addWidget(
-          StatBlockType.avgPace,
+          FrameWidgetType.averagePace,
         );
 
         final config = container.read(frameConfigProvider);
@@ -81,32 +79,42 @@ void main() {
 
       test('multiple widgets get unique ids', () {
         final notifier = container.read(frameConfigProvider.notifier);
-        notifier.addWidget(StatBlockType.distance);
-        notifier.addWidget(StatBlockType.duration);
+        notifier.addWidget(FrameWidgetType.distance);
+        notifier.addWidget(FrameWidgetType.duration);
 
         final config = container.read(frameConfigProvider);
         expect(config.widgets, hasLength(2));
         expect(config.widgets[0].id, isNot(config.widgets[1].id));
+      });
+
+      test('new route widget has trimEndpoints true', () {
+        container.read(frameConfigProvider.notifier).addWidget(
+          FrameWidgetType.route,
+        );
+
+        final config = container.read(frameConfigProvider);
+        expect(config.widgets.first.type, FrameWidgetType.route);
+        expect(config.widgets.first.trimEndpoints, isTrue);
       });
     });
 
     group('removeWidget', () {
       test('removes widget by id', () {
         final notifier = container.read(frameConfigProvider.notifier);
-        notifier.addWidget(StatBlockType.distance);
-        notifier.addWidget(StatBlockType.duration);
+        notifier.addWidget(FrameWidgetType.distance);
+        notifier.addWidget(FrameWidgetType.duration);
 
         final id = container.read(frameConfigProvider).widgets.first.id;
         notifier.removeWidget(id);
 
         final config = container.read(frameConfigProvider);
         expect(config.widgets, hasLength(1));
-        expect(config.widgets.first.type, StatBlockType.duration);
+        expect(config.widgets.first.type, FrameWidgetType.duration);
       });
 
       test('no-op for unknown id', () {
         final notifier = container.read(frameConfigProvider.notifier);
-        notifier.addWidget(StatBlockType.distance);
+        notifier.addWidget(FrameWidgetType.distance);
         notifier.removeWidget(99999);
 
         final config = container.read(frameConfigProvider);
@@ -117,7 +125,7 @@ void main() {
     group('moveWidget', () {
       test('updates widget position', () {
         final notifier = container.read(frameConfigProvider.notifier);
-        notifier.addWidget(StatBlockType.distance);
+        notifier.addWidget(FrameWidgetType.distance);
 
         final id = container.read(frameConfigProvider).widgets.first.id;
         notifier.moveWidget(id, const Offset(0.2, 0.8));
@@ -128,23 +136,51 @@ void main() {
 
       test('preserves widget id and type', () {
         final notifier = container.read(frameConfigProvider.notifier);
-        notifier.addWidget(StatBlockType.avgWatts);
+        notifier.addWidget(FrameWidgetType.averageWatts);
 
         final original = container.read(frameConfigProvider).widgets.first;
         notifier.moveWidget(original.id, const Offset(0.1, 0.9));
 
         final moved = container.read(frameConfigProvider).widgets.first;
         expect(moved.id, original.id);
-        expect(moved.type, StatBlockType.avgWatts);
+        expect(moved.type, FrameWidgetType.averageWatts);
       });
 
       test('no-op for unknown id', () {
         final notifier = container.read(frameConfigProvider.notifier);
-        notifier.addWidget(StatBlockType.distance);
+        notifier.addWidget(FrameWidgetType.distance);
         notifier.moveWidget(99999, const Offset(0.1, 0.1));
 
         final config = container.read(frameConfigProvider);
         expect(config.widgets.first.position, const Offset(0.5, 0.5));
+      });
+    });
+
+    group('updateWidget', () {
+      test('replaces widget with updated copy', () {
+        final notifier = container.read(frameConfigProvider.notifier);
+        notifier.addWidget(FrameWidgetType.route);
+
+        final original = container.read(frameConfigProvider).widgets.first;
+        final updated = original.copyWith(trimEndpoints: false);
+        notifier.updateWidget(original.id, updated);
+
+        final config = container.read(frameConfigProvider);
+        final result = config.widgets.first;
+        expect(result.id, original.id);
+        expect(result.trimEndpoints, isFalse);
+      });
+
+      test('no-op for unknown id', () {
+        final notifier = container.read(frameConfigProvider.notifier);
+        notifier.addWidget(FrameWidgetType.distance);
+
+        final original = container.read(frameConfigProvider).widgets.first;
+        final updated = original.copyWith(trimEndpoints: false);
+        notifier.updateWidget(99999, updated);
+
+        final config = container.read(frameConfigProvider);
+        expect(config.widgets.first.trimEndpoints, isTrue);
       });
     });
   });

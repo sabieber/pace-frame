@@ -2,8 +2,8 @@
 ///
 /// [FrameConfig] is the top-level model persisted in the editor provider:
 /// it holds the chosen aspect ratio, background (solid color or image),
-/// the list of frame widgets with their positions, and whether the
-/// route outline is shown.
+/// and the list of frame widgets (stat blocks and route) with their
+/// positions and settings.
 library;
 
 import 'dart:ui';
@@ -36,26 +36,48 @@ class FrameBackground {
   }
 }
 
-enum StatBlockType { distance, duration, avgPace, avgWatts, avgHr, elevation }
+enum FrameWidgetType {
+  distance,
+  duration,
+  averagePace,
+  averageWatts,
+  averageHeartRate,
+  elevation,
+  route,
+}
 
 class FrameWidget {
-  FrameWidget({required this.type, Offset? position})
-    : id = _nextId++,
-      position = position ?? const Offset(0.5, 0.5);
+  FrameWidget({
+    required this.type,
+    Offset? position,
+    this.trimEndpoints = true,
+  }) : id = _nextId++,
+       position = position ?? const Offset(0.5, 0.5);
 
-  FrameWidget._({required this.id, required this.type, required this.position});
+  FrameWidget._({
+    required this.id,
+    required this.type,
+    required this.position,
+    required this.trimEndpoints,
+  });
 
   static int _nextId = 0;
 
   final int id;
-  final StatBlockType type;
+  final FrameWidgetType type;
   final Offset position;
+  final bool trimEndpoints;
 
-  FrameWidget copyWith({StatBlockType? type, Offset? position}) {
+  FrameWidget copyWith({
+    FrameWidgetType? type,
+    Offset? position,
+    bool? trimEndpoints,
+  }) {
     return FrameWidget._(
       id: id,
       type: type ?? this.type,
       position: position ?? this.position,
+      trimEndpoints: trimEndpoints ?? this.trimEndpoints,
     );
   }
 }
@@ -66,32 +88,24 @@ class FrameConfig {
     this.aspectRatio = AspectRatioPreset.story9x16,
     this.background = const FrameBackground(),
     this.widgets = const [],
-    this.showRoute = true,
-    this.trimEndpoints = true,
   });
 
   final int activityId;
   final AspectRatioPreset aspectRatio;
   final FrameBackground background;
   final List<FrameWidget> widgets;
-  final bool showRoute;
-  final bool trimEndpoints;
 
   FrameConfig copyWith({
     int? activityId,
     AspectRatioPreset? aspectRatio,
     FrameBackground? background,
     List<FrameWidget>? widgets,
-    bool? showRoute,
-    bool? trimEndpoints,
   }) {
     return FrameConfig(
       activityId: activityId ?? this.activityId,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       background: background ?? this.background,
       widgets: widgets ?? this.widgets,
-      showRoute: showRoute ?? this.showRoute,
-      trimEndpoints: trimEndpoints ?? this.trimEndpoints,
     );
   }
 }

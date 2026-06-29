@@ -19,7 +19,7 @@ class FrameConfigNotifier extends Notifier<FrameConfig> {
     state = config;
   }
 
-  void addWidget(StatBlockType type) {
+  void addWidget(FrameWidgetType type) {
     final widget = FrameWidget(type: type);
     state = state.copyWith(widgets: [...state.widgets, widget]);
   }
@@ -35,6 +35,15 @@ class FrameConfigNotifier extends Notifier<FrameConfig> {
       widgets: [
         for (final widget in state.widgets)
           if (widget.id == id) widget.copyWith(position: position) else widget,
+      ],
+    );
+  }
+
+  void updateWidget(int id, FrameWidget updated) {
+    state = state.copyWith(
+      widgets: [
+        for (final widget in state.widgets)
+          if (widget.id == id) updated else widget,
       ],
     );
   }
