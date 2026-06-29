@@ -130,11 +130,11 @@ void main() {
         final notifier = container.read(frameConfigProvider.notifier);
         notifier.addWidget(StatBlockType.avgWatts);
 
-        final w = container.read(frameConfigProvider).widgets.first;
-        notifier.moveWidget(w.id, const Offset(0.1, 0.9));
+        final original = container.read(frameConfigProvider).widgets.first;
+        notifier.moveWidget(original.id, const Offset(0.1, 0.9));
 
         final moved = container.read(frameConfigProvider).widgets.first;
-        expect(moved.id, w.id);
+        expect(moved.id, original.id);
         expect(moved.type, StatBlockType.avgWatts);
       });
 

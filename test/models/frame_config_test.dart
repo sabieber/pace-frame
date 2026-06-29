@@ -8,48 +8,48 @@ import 'package:pace_frame/models/frame_config.dart';
 void main() {
   group('FrameWidget', () {
     test('assigns unique ids', () {
-      final a = FrameWidget(type: StatBlockType.distance);
-      final b = FrameWidget(type: StatBlockType.duration);
-      expect(a.id, isNot(b.id));
+      final first = FrameWidget(type: StatBlockType.distance);
+      final second = FrameWidget(type: StatBlockType.duration);
+      expect(first.id, isNot(second.id));
     });
 
     test('defaults position to center', () {
-      final w = FrameWidget(type: StatBlockType.avgPace);
-      expect(w.position, const Offset(0.5, 0.5));
+      final paceWidget = FrameWidget(type: StatBlockType.avgPace);
+      expect(paceWidget.position, const Offset(0.5, 0.5));
     });
 
     test('accepts custom position', () {
-      final w = FrameWidget(
+      final wattsWidget = FrameWidget(
         type: StatBlockType.avgWatts,
         position: const Offset(0.2, 0.8),
       );
-      expect(w.position, const Offset(0.2, 0.8));
+      expect(wattsWidget.position, const Offset(0.2, 0.8));
     });
 
     test('copyWith overrides position', () {
-      final w = FrameWidget(type: StatBlockType.distance);
-      final moved = w.copyWith(position: const Offset(0.1, 0.9));
+      final distanceWidget = FrameWidget(type: StatBlockType.distance);
+      final moved = distanceWidget.copyWith(position: const Offset(0.1, 0.9));
       expect(moved.position, const Offset(0.1, 0.9));
-      expect(moved.id, w.id);
-      expect(moved.type, w.type);
+      expect(moved.id, distanceWidget.id);
+      expect(moved.type, distanceWidget.type);
     });
 
     test('copyWith overrides type', () {
-      final w = FrameWidget(type: StatBlockType.distance);
-      final changed = w.copyWith(type: StatBlockType.elevation);
+      final distanceWidget = FrameWidget(type: StatBlockType.distance);
+      final changed = distanceWidget.copyWith(type: StatBlockType.elevation);
       expect(changed.type, StatBlockType.elevation);
-      expect(changed.id, w.id);
+      expect(changed.id, distanceWidget.id);
     });
 
     test('copyWith with no args preserves values', () {
-      final w = FrameWidget(
+      final hrWidget = FrameWidget(
         type: StatBlockType.avgHr,
         position: const Offset(0.3, 0.7),
       );
-      final copy = w.copyWith();
-      expect(copy.id, w.id);
-      expect(copy.type, w.type);
-      expect(copy.position, w.position);
+      final copy = hrWidget.copyWith();
+      expect(copy.id, hrWidget.id);
+      expect(copy.type, hrWidget.type);
+      expect(copy.position, hrWidget.position);
     });
   });
 
@@ -131,8 +131,8 @@ void main() {
 
     test('copyWith overrides widgets', () {
       const config = FrameConfig(activityId: 1);
-      final w = FrameWidget(type: StatBlockType.distance);
-      final updated = config.copyWith(widgets: [w]);
+      final distanceWidget = FrameWidget(type: StatBlockType.distance);
+      final updated = config.copyWith(widgets: [distanceWidget]);
       expect(updated.widgets, hasLength(1));
       expect(updated.widgets.first.type, StatBlockType.distance);
     });
@@ -144,13 +144,13 @@ void main() {
     });
 
     test('copyWith with no args returns equivalent config', () {
-      final w = FrameWidget(type: StatBlockType.avgPace);
+      final paceWidget = FrameWidget(type: StatBlockType.avgPace);
       final config = FrameConfig(
         activityId: 7,
         aspectRatio: AspectRatioPreset.post4x5,
         showRoute: false,
         trimEndpoints: false,
-        widgets: [w],
+        widgets: [paceWidget],
       );
       final copy = config.copyWith();
       expect(copy.activityId, config.activityId);
