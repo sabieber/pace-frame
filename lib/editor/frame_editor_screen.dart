@@ -15,8 +15,8 @@
 ///
 /// **Snap-on-release**: when the user lifts their finger the widget
 /// snaps to the closest alignment target if it is within
-/// [_kSnapReleaseThreshold] pixels. Because the threshold is small
-/// (3 px) the resulting jump is imperceptible.
+/// [_kSnapReleaseThreshold] pixels. The release threshold equals the
+/// guide-display threshold, so any guide line you see predicts the snap.
 ///
 /// **Drag-bounds clamping**: the widget's top-left corner is clamped to
 /// `[0, frameWidth - widgetWidth]` × `[0, frameHeight - widgetHeight]`
@@ -41,6 +41,7 @@
 library;
 
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -122,6 +123,9 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
   /// Active snap guide lines to display in the preview overlay.
   List<_SnapGuide> _snapGuides = const [];
 
+  /// Active equal-distance guide bars to display in the preview overlay.
+  List<_DistanceGuide> _distanceGuides = const [];
+
   @override
   void initState() {
     super.initState();
@@ -192,11 +196,15 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                 for (final frameWidget in config.widgets)
                   if (frameWidget.type != FrameWidgetType.route)
                     _buildDraggableWidget(frameWidget, logicalSize),
-                if (_snapGuides.isNotEmpty)
+                if (_snapGuides.isNotEmpty || _distanceGuides.isNotEmpty)
                   Positioned.fill(
                     child: IgnorePointer(
                       child: CustomPaint(
-                        painter: _SnapGuidePainter(_snapGuides),
+                        painter: _SnapGuidePainter(
+                          _snapGuides,
+                          _distanceGuides,
+                          Theme.of(context).colorScheme.tertiary,
+                        ),
                       ),
                     ),
                   ),
@@ -454,6 +462,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       _dragDy = 0;
       _dragDistance = 0;
       _snapGuides = const [];
+      _distanceGuides = const [];
     });
   }
 
@@ -471,13 +480,26 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     final rawDx = _dragDx + details.delta.dx;
     final rawDy = _dragDy + details.delta.dy;
 
-    final guides = _dragDistance > _kSnapOnsetThreshold
+    final active = _dragDistance > _kSnapOnsetThreshold;
+    final guides = active
         ? _findGuides(
             currentX: baseDx + rawDx,
             currentY: baseDy + rawDy,
             logicalSize: logicalSize,
           )
         : const <_SnapGuide>[];
+    final distance = active
+        ? _findEqualDistance(
+            Rect.fromLTWH(
+              baseDx + rawDx,
+              baseDy + rawDy,
+              _dragWidgetSize.width,
+              _dragWidgetSize.height,
+            ),
+            _otherRects(logicalSize),
+            _kSnapThreshold,
+          )
+        : const _DistanceSnap(null, null, []);
 
     final maxDx = logicalSize.width - baseDx - _dragWidgetSize.width;
     final maxDy = logicalSize.height - baseDy - _dragWidgetSize.height;
@@ -485,6 +507,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       _dragDx = rawDx.clamp(-baseDx, maxDx);
       _dragDy = rawDy.clamp(-baseDy, maxDy);
       _snapGuides = guides;
+      _distanceGuides = distance.guides;
     });
   }
 
@@ -520,8 +543,19 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       _kSnapReleaseThreshold,
     );
 
-    final finalX = currentX + snapDx;
-    final finalY = currentY + snapDy;
+    final distance = _findEqualDistance(
+      Rect.fromLTWH(
+        currentX,
+        currentY,
+        _dragWidgetSize.width,
+        _dragWidgetSize.height,
+      ),
+      _otherRects(logicalSize),
+      _kSnapReleaseThreshold,
+    );
+
+    final finalX = currentX + (snapDx != 0.0 ? snapDx : (distance.deltaX ?? 0.0));
+    final finalY = currentY + (snapDy != 0.0 ? snapDy : (distance.deltaY ?? 0.0));
 
     ref
         .read(frameConfigProvider.notifier)
@@ -535,6 +569,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     setState(() {
       _draggingId = null;
       _snapGuides = const [];
+      _distanceGuides = const [];
     });
   }
 
@@ -700,7 +735,8 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
 
   /// Builds the list of snap guides to display during a drag.
   /// Checks each axis independently and keeps at most one guide per axis
-  /// (the closest alignment).
+  /// (the closest alignment). The guide line is drawn at the alignment
+  /// *target* (the line being snapped to), not at the widget edge.
   List<_SnapGuide> _findGuides({
     required double currentX,
     required double currentY,
@@ -709,7 +745,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     final targets = _snapTargets(logicalSize);
     final guides = <_SnapGuide>[];
 
-    final snapDx = _closestSnapDelta(
+    final targetX = _closestSnapTarget(
       [
         currentX,
         currentX + _dragWidgetSize.width,
@@ -718,11 +754,11 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       targets.horizontal,
       _kSnapThreshold,
     );
-    if (snapDx != 0.0) {
-      guides.add(_SnapGuide(_SnapAxis.vertical, currentX + snapDx));
+    if (targetX != null) {
+      guides.add(_SnapGuide(_SnapAxis.vertical, targetX));
     }
 
-    final snapDy = _closestSnapDelta(
+    final targetY = _closestSnapTarget(
       [
         currentY,
         currentY + _dragWidgetSize.height,
@@ -731,12 +767,208 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       targets.vertical,
       _kSnapThreshold,
     );
-    if (snapDy != 0.0) {
-      guides.add(_SnapGuide(_SnapAxis.horizontal, currentY + snapDy));
+    if (targetY != null) {
+      guides.add(_SnapGuide(_SnapAxis.horizontal, targetY));
     }
 
     return guides;
   }
+
+  /// Returns the target in [targets] closest to any of [edges] when the
+  /// distance is strictly less than [threshold], or `null` if nothing is
+  /// within range. Used to position the alignment guide line on the
+  /// target it snaps to.
+  double? _closestSnapTarget(
+    List<double> edges,
+    List<double> targets,
+    double threshold,
+  ) {
+    double? bestTarget;
+    var minDist = threshold;
+    for (final target in targets) {
+      for (final edge in edges) {
+        final distance = (target - edge).abs();
+        if (distance < minDist) {
+          minDist = distance;
+          bestTarget = target;
+        }
+      }
+    }
+    return bestTarget;
+  }
+
+  /// Pixel rects of every widget except the one being dragged, used for
+  /// equal-distance detection.
+  List<Rect> _otherRects(Size logicalSize) {
+    final rects = <Rect>[];
+    for (final other in ref.read(frameConfigProvider).widgets) {
+      if (other.id == _draggingId) continue;
+      final otherSize = _widgetSizes[other.id];
+      if (otherSize == null) continue;
+      rects.add(
+        Rect.fromLTWH(
+          other.position.dx * logicalSize.width,
+          other.position.dy * logicalSize.height,
+          otherSize.width,
+          otherSize.height,
+        ),
+      );
+    }
+    return rects;
+  }
+
+  /// Detects an equal-distance target for [dragged] on either axis. Two
+  /// arrangements are recognised, both requiring neighbours that share a
+  /// band on the perpendicular axis (i.e. the same visual row/column):
+  ///
+  /// 1. **Centred between two flankers** — equalise the gap on each side.
+  /// 2. **Extending a row/column at its end** — replicate the gap of the
+  ///    adjacent pair just beyond the nearest neighbour.
+  ///
+  /// For each axis the candidate requiring the smallest move (and under
+  /// [threshold] pixels) wins; it contributes a snap delta and the two
+  /// equal-length guide bars that visualise the matched gaps.
+  _DistanceSnap _findEqualDistance(
+    Rect dragged,
+    List<Rect> others,
+    double threshold,
+  ) {
+    final horizontal = _equalizeMainAxis(dragged, others, threshold);
+    final vertical = _equalizeMainAxis(
+      _transposeRect(dragged),
+      others.map(_transposeRect).toList(),
+      threshold,
+    );
+
+    return _DistanceSnap(horizontal?.delta, vertical?.delta, [
+      ...?horizontal?.guides,
+      if (vertical != null) ...vertical.guides.map(_transposeGuide),
+    ]);
+  }
+
+  /// Builds the equal-distance candidates along the horizontal axis and
+  /// returns the one requiring the smallest move under [threshold], or null
+  /// if none qualifies. (Vertical reuses this via transposed rects.)
+  _AxisEqualize? _equalizeMainAxis(
+    Rect dragged,
+    List<Rect> others,
+    double threshold,
+  ) {
+    final rowMembers = others
+        .where(
+          (other) => other.top < dragged.bottom && other.bottom > dragged.top,
+        )
+        .toList();
+
+    final leftNeighbor = _nearestLeft(rowMembers, dragged.left);
+    final rightNeighbor = _nearestRight(rowMembers, dragged.right);
+    final candidates = <_AxisEqualize>[];
+
+    // Case 1: centre between the two nearest flankers.
+    if (leftNeighbor != null && rightNeighbor != null) {
+      final targetLeft =
+          (leftNeighbor.right + rightNeighbor.left - dragged.width) / 2;
+      candidates.add(
+        _AxisEqualize(targetLeft - dragged.left, [
+          _gapGuide(leftNeighbor.right, dragged.left, leftNeighbor, dragged),
+          _gapGuide(dragged.right, rightNeighbor.left, dragged, rightNeighbor),
+        ]),
+      );
+    }
+
+    // Case 2a: extend the row rightwards, matching the gap on the far side
+    // of the left neighbour.
+    if (leftNeighbor != null) {
+      final farNeighbor = _nearestLeft(rowMembers, leftNeighbor.left);
+      if (farNeighbor != null) {
+        final gap = leftNeighbor.left - farNeighbor.right;
+        final targetLeft = leftNeighbor.right + gap;
+        candidates.add(
+          _AxisEqualize(targetLeft - dragged.left, [
+            _gapGuide(leftNeighbor.right, dragged.left, leftNeighbor, dragged),
+            _gapGuide(
+              farNeighbor.right,
+              leftNeighbor.left,
+              farNeighbor,
+              leftNeighbor,
+            ),
+          ]),
+        );
+      }
+    }
+
+    // Case 2b: extend the row leftwards, matching the gap on the far side of
+    // the right neighbour.
+    if (rightNeighbor != null) {
+      final farNeighbor = _nearestRight(rowMembers, rightNeighbor.right);
+      if (farNeighbor != null) {
+        final gap = farNeighbor.left - rightNeighbor.right;
+        final targetLeft = rightNeighbor.left - gap - dragged.width;
+        candidates.add(
+          _AxisEqualize(targetLeft - dragged.left, [
+            _gapGuide(dragged.right, rightNeighbor.left, dragged, rightNeighbor),
+            _gapGuide(
+              rightNeighbor.right,
+              farNeighbor.left,
+              rightNeighbor,
+              farNeighbor,
+            ),
+          ]),
+        );
+      }
+    }
+
+    _AxisEqualize? best;
+    for (final candidate in candidates) {
+      if (candidate.delta.abs() >= threshold) continue;
+      if (best == null || candidate.delta.abs() < best.delta.abs()) {
+        best = candidate;
+      }
+    }
+    return best;
+  }
+
+  /// Nearest rect in [members] lying entirely left of [boundary].
+  Rect? _nearestLeft(List<Rect> members, double boundary) {
+    Rect? best;
+    for (final member in members) {
+      if (member.right <= boundary &&
+          (best == null || member.right > best.right)) {
+        best = member;
+      }
+    }
+    return best;
+  }
+
+  /// Nearest rect in [members] lying entirely right of [boundary].
+  Rect? _nearestRight(List<Rect> members, double boundary) {
+    Rect? best;
+    for (final member in members) {
+      if (member.left >= boundary &&
+          (best == null || member.left < best.left)) {
+        best = member;
+      }
+    }
+    return best;
+  }
+
+  /// A horizontal gap guide bar from [fromX] to [toX], vertically centred on
+  /// the band shared by [rectA] and [rectB].
+  _DistanceGuide _gapGuide(double fromX, double toX, Rect rectA, Rect rectB) {
+    final bandY =
+        (math.max(rectA.top, rectB.top) +
+            math.min(rectA.bottom, rectB.bottom)) /
+        2;
+    return _DistanceGuide(Offset(fromX, bandY), Offset(toX, bandY));
+  }
+
+  Rect _transposeRect(Rect rect) =>
+      Rect.fromLTRB(rect.top, rect.left, rect.bottom, rect.right);
+
+  _DistanceGuide _transposeGuide(_DistanceGuide guide) => _DistanceGuide(
+    Offset(guide.start.dy, guide.start.dx),
+    Offset(guide.end.dy, guide.end.dx),
+  );
 
   // ---------------------------------------------------------------------------
   // Stat block display helpers
@@ -1359,16 +1591,19 @@ class _ToolbarButton extends StatelessWidget {
 // =============================================================================
 
 /// Maximum distance (px) at which a guide line appears during drag.
-const _kSnapThreshold = 3.0;
+const _kSnapThreshold = 10.0;
 
 /// Maximum distance (px) at which the widget snaps on finger release.
 /// Kept equal to [_kSnapThreshold] so the guide line is a reliable
 /// indicator: if you see the line, the snap will happen.
-const _kSnapReleaseThreshold = 3.0;
+const _kSnapReleaseThreshold = 10.0;
 
 /// Cumulative drag distance (px) required before snap guide detection
 /// activates. Prevents spurious guides on touch-down.
 const _kSnapOnsetThreshold = 8.0;
+
+/// Half-length (px) of the perpendicular end ticks on equal-distance bars.
+const _kDistanceTick = 4.0;
 
 /// Route widget size as a fraction of the frame's logical width.
 const _kRouteSizeRatio = 0.55;
@@ -1405,12 +1640,42 @@ class _SnapTargetSet {
   final List<double> vertical;
 }
 
+/// A single equal-distance guide bar drawn between two widget edges,
+/// from [start] to [end] in frame-local pixels.
+class _DistanceGuide {
+  const _DistanceGuide(this.start, this.end);
+
+  final Offset start;
+  final Offset end;
+}
+
+/// Result of equalizing one axis: the snap [delta] to move the dragged
+/// widget by and the two gap [guides] to display.
+class _AxisEqualize {
+  const _AxisEqualize(this.delta, this.guides);
+
+  final double delta;
+  final List<_DistanceGuide> guides;
+}
+
+/// Equal-distance snap result across both axes. A null delta means that
+/// axis has no equal-distance target within range.
+class _DistanceSnap {
+  const _DistanceSnap(this.deltaX, this.deltaY, this.guides);
+
+  final double? deltaX;
+  final double? deltaY;
+  final List<_DistanceGuide> guides;
+}
+
 /// Draws dashed snap guide lines across the frame. Wrapped in
 /// [IgnorePointer] by the caller so it does not interfere with gestures.
 class _SnapGuidePainter extends CustomPainter {
-  _SnapGuidePainter(this.guides);
+  _SnapGuidePainter(this.guides, this.distanceGuides, this.distanceColor);
 
   final List<_SnapGuide> guides;
+  final List<_DistanceGuide> distanceGuides;
+  final Color distanceColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1437,6 +1702,25 @@ class _SnapGuidePainter extends CustomPainter {
         }
       }
       canvas.drawPath(path, paint);
+    }
+
+    final distancePaint = Paint()
+      ..color = distanceColor
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    for (final guide in distanceGuides) {
+      canvas.drawLine(guide.start, guide.end, distancePaint);
+      final isHorizontal = (guide.start.dy - guide.end.dy).abs() < 0.5;
+      for (final endpoint in [guide.start, guide.end]) {
+        final tickStart = isHorizontal
+            ? Offset(endpoint.dx, endpoint.dy - _kDistanceTick)
+            : Offset(endpoint.dx - _kDistanceTick, endpoint.dy);
+        final tickEnd = isHorizontal
+            ? Offset(endpoint.dx, endpoint.dy + _kDistanceTick)
+            : Offset(endpoint.dx + _kDistanceTick, endpoint.dy);
+        canvas.drawLine(tickStart, tickEnd, distancePaint);
+      }
     }
   }
 
