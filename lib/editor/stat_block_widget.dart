@@ -16,6 +16,9 @@ class StatBlockWidget extends StatelessWidget {
     this.labelColor = Colors.white70,
     this.valueColor = Colors.white,
     this.scale = 1.0,
+    this.showTitle = true,
+    this.showIcon = true,
+    this.icon,
     this.editMode = false,
     this.onDelete,
   });
@@ -29,6 +32,10 @@ class StatBlockWidget extends StatelessWidget {
   /// so the block lays out at its true scaled size (no paint-only transform).
   final double scale;
 
+  final bool showTitle;
+  final bool showIcon;
+  final IconData? icon;
+
   final bool editMode;
   final VoidCallback? onDelete;
 
@@ -39,27 +46,38 @@ class StatBlockWidget extends StatelessWidget {
       children: [
         Container(
           padding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 8 * scale),
-          child: Column(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                label.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 10 * scale,
-                  fontWeight: FontWeight.w600,
-                  color: labelColor,
-                  letterSpacing: 1.2 * scale,
-                ),
-              ),
-              SizedBox(height: 2 * scale),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 22 * scale,
-                  fontWeight: FontWeight.bold,
-                  color: valueColor,
-                ),
+              if (showIcon && icon != null) ...[
+                Icon(icon, size: 22 * scale, color: valueColor),
+                SizedBox(width: 8 * scale),
+              ],
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (showTitle)
+                    Text(
+                      label.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10 * scale,
+                        fontWeight: FontWeight.w600,
+                        color: labelColor,
+                        letterSpacing: 1.2 * scale,
+                      ),
+                    ),
+                  if (showTitle) SizedBox(height: 2 * scale),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 22 * scale,
+                      fontWeight: FontWeight.bold,
+                      color: valueColor,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

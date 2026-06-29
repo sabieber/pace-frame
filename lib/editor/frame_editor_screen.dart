@@ -319,12 +319,11 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                 right: _kChromeGutter - 10,
                 child: _buildDeleteButton(frameWidget.id),
               ),
-              if (frameWidget.type == FrameWidgetType.route)
-                Positioned(
-                  top: _kChromeGutter - 10,
-                  left: _kChromeGutter - 10,
-                  child: _buildSettingsButton(frameWidget.id),
-                ),
+              Positioned(
+                top: _kChromeGutter - 10,
+                left: _kChromeGutter - 10,
+                child: _buildSettingsButton(frameWidget),
+              ),
               Positioned(
                 bottom: _kChromeGutter - 12,
                 right: _kChromeGutter - 12,
@@ -360,11 +359,15 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     );
   }
 
-  Widget _buildSettingsButton(int widgetId) {
+  Widget _buildSettingsButton(FrameWidget frameWidget) {
     return GestureDetector(
       onTap: () {
         final config = ref.read(frameConfigProvider);
-        _showRouteSettings(config, widgetId);
+        if (frameWidget.type == FrameWidgetType.route) {
+          _showRouteSettings(config, frameWidget.id);
+        } else {
+          _showStatSettings(config, frameWidget.id);
+        }
       },
       child: Container(
         width: 20,
@@ -421,6 +424,9 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       label: _labelFor(frameWidget.type),
       value: _valueFor(frameWidget.type),
       scale: scale,
+      showTitle: frameWidget.showTitle,
+      showIcon: frameWidget.showIcon,
+      icon: _iconFor(frameWidget.type),
     );
   }
 
@@ -742,6 +748,18 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     };
   }
 
+  IconData _iconFor(FrameWidgetType type) {
+    return switch (type) {
+      FrameWidgetType.distance => Icons.straighten,
+      FrameWidgetType.duration => Icons.timer,
+      FrameWidgetType.averagePace => Icons.speed,
+      FrameWidgetType.averageWatts => Icons.bolt,
+      FrameWidgetType.averageHeartRate => Icons.favorite,
+      FrameWidgetType.elevation => Icons.terrain,
+      FrameWidgetType.route => Icons.route,
+    };
+  }
+
   String _valueFor(FrameWidgetType type) {
     final activity = widget.activity;
     switch (type) {
@@ -834,11 +852,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
             ),
             ...available.map((type) {
               return ListTile(
-                leading: Icon(
-                  type == FrameWidgetType.route
-                      ? Icons.route
-                      : Icons.text_fields,
-                ),
+                leading: Icon(_iconFor(type)),
                 title: Text(_labelFor(type)),
                 onTap: () {
                   ref.read(frameConfigProvider.notifier).addWidget(type);
@@ -915,6 +929,67 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                           .updateWidget(
                             routeWidgetId,
                             routeWidget.copyWith(trimEndpoints: trimEndpoints),
+                          );
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Done'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showStatSettings(FrameConfig config, int statWidgetId) {
+    final statWidget = config.widgets.firstWhere(
+      (widget) => widget.id == statWidgetId,
+    );
+    var showTitle = statWidget.showTitle;
+    var showIcon = statWidget.showIcon;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Text(
+                    '${_labelFor(statWidget.type)} Settings',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                SwitchListTile(
+                  title: const Text('Show Title'),
+                  value: showTitle,
+                  onChanged: (value) =>
+                      setModalState(() => showTitle = value),
+                ),
+                SwitchListTile(
+                  title: const Text('Show Icon'),
+                  value: showIcon,
+                  onChanged: (value) =>
+                      setModalState(() => showIcon = value),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FilledButton(
+                    onPressed: () {
+                      ref
+                          .read(frameConfigProvider.notifier)
+                          .updateWidget(
+                            statWidgetId,
+                            statWidget.copyWith(
+                              showTitle: showTitle,
+                              showIcon: showIcon,
+                            ),
                           );
                       Navigator.pop(ctx);
                     },
