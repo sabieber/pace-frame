@@ -6,32 +6,50 @@ import 'package:pace_frame/models/aspect_ratio_preset.dart';
 import 'package:pace_frame/models/frame_config.dart';
 
 void main() {
-  group('StatBlock', () {
-    test('default constructor enables the block', () {
-      const block = StatBlock(type: StatBlockType.distance);
-      expect(block.enabled, isTrue);
-      expect(block.type, StatBlockType.distance);
+  group('FrameWidget', () {
+    test('assigns unique ids', () {
+      final a = FrameWidget(type: StatBlockType.distance);
+      final b = FrameWidget(type: StatBlockType.duration);
+      expect(a.id, isNot(b.id));
     });
 
-    test('copyWith overrides enabled', () {
-      const block = StatBlock(type: StatBlockType.avgWatts);
-      final disabled = block.copyWith(enabled: false);
-      expect(disabled.enabled, isFalse);
-      expect(disabled.type, StatBlockType.avgWatts);
+    test('defaults position to center', () {
+      final w = FrameWidget(type: StatBlockType.avgPace);
+      expect(w.position, const Offset(0.5, 0.5));
+    });
+
+    test('accepts custom position', () {
+      final w = FrameWidget(
+        type: StatBlockType.avgWatts,
+        position: const Offset(0.2, 0.8),
+      );
+      expect(w.position, const Offset(0.2, 0.8));
+    });
+
+    test('copyWith overrides position', () {
+      final w = FrameWidget(type: StatBlockType.distance);
+      final moved = w.copyWith(position: const Offset(0.1, 0.9));
+      expect(moved.position, const Offset(0.1, 0.9));
+      expect(moved.id, w.id);
+      expect(moved.type, w.type);
     });
 
     test('copyWith overrides type', () {
-      const block = StatBlock(type: StatBlockType.avgPace);
-      final changed = block.copyWith(type: StatBlockType.elevation);
+      final w = FrameWidget(type: StatBlockType.distance);
+      final changed = w.copyWith(type: StatBlockType.elevation);
       expect(changed.type, StatBlockType.elevation);
-      expect(changed.enabled, isTrue);
+      expect(changed.id, w.id);
     });
 
-    test('copyWith with no args returns equivalent instance', () {
-      const block = StatBlock(type: StatBlockType.avgHr, enabled: false);
-      final copy = block.copyWith();
-      expect(copy.type, block.type);
-      expect(copy.enabled, block.enabled);
+    test('copyWith with no args preserves values', () {
+      final w = FrameWidget(
+        type: StatBlockType.avgHr,
+        position: const Offset(0.3, 0.7),
+      );
+      final copy = w.copyWith();
+      expect(copy.id, w.id);
+      expect(copy.type, w.type);
+      expect(copy.position, w.position);
     });
   });
 
@@ -79,27 +97,9 @@ void main() {
       expect(config.activityId, 42);
       expect(config.aspectRatio, AspectRatioPreset.story9x16);
       expect(config.background.type, BackgroundType.color);
-      expect(config.statBlocks, hasLength(6));
+      expect(config.widgets, isEmpty);
       expect(config.showRoute, isTrue);
       expect(config.trimEndpoints, isTrue);
-    });
-
-    test('default statBlocks cover all types', () {
-      const config = FrameConfig(activityId: 1);
-      final types = config.statBlocks.map((b) => b.type).toSet();
-      expect(types, {
-        StatBlockType.distance,
-        StatBlockType.duration,
-        StatBlockType.avgPace,
-        StatBlockType.avgWatts,
-        StatBlockType.avgHr,
-        StatBlockType.elevation,
-      });
-    });
-
-    test('all default statBlocks are enabled', () {
-      const config = FrameConfig(activityId: 1);
-      expect(config.statBlocks.every((b) => b.enabled), isTrue);
     });
 
     test('copyWith overrides aspectRatio', () {
@@ -129,13 +129,12 @@ void main() {
       expect(custom.background.color, const Color(0xFF000000));
     });
 
-    test('copyWith overrides statBlocks', () {
+    test('copyWith overrides widgets', () {
       const config = FrameConfig(activityId: 1);
-      final minimal = config.copyWith(
-        statBlocks: const [StatBlock(type: StatBlockType.distance)],
-      );
-      expect(minimal.statBlocks, hasLength(1));
-      expect(minimal.statBlocks.first.type, StatBlockType.distance);
+      final w = FrameWidget(type: StatBlockType.distance);
+      final updated = config.copyWith(widgets: [w]);
+      expect(updated.widgets, hasLength(1));
+      expect(updated.widgets.first.type, StatBlockType.distance);
     });
 
     test('copyWith overrides activityId', () {
@@ -145,18 +144,20 @@ void main() {
     });
 
     test('copyWith with no args returns equivalent config', () {
-      const config = FrameConfig(
+      final w = FrameWidget(type: StatBlockType.avgPace);
+      final config = FrameConfig(
         activityId: 7,
         aspectRatio: AspectRatioPreset.post4x5,
         showRoute: false,
         trimEndpoints: false,
+        widgets: [w],
       );
       final copy = config.copyWith();
       expect(copy.activityId, config.activityId);
       expect(copy.aspectRatio, config.aspectRatio);
       expect(copy.showRoute, config.showRoute);
       expect(copy.trimEndpoints, config.trimEndpoints);
-      expect(copy.statBlocks, hasLength(config.statBlocks.length));
+      expect(copy.widgets, hasLength(1));
     });
   });
 }

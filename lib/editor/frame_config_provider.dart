@@ -5,6 +5,8 @@
 /// [FrameConfigNotifier.update].
 library;
 
+import 'dart:ui';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/frame_config.dart';
@@ -15,6 +17,26 @@ class FrameConfigNotifier extends Notifier<FrameConfig> {
 
   void update(FrameConfig config) {
     state = config;
+  }
+
+  void addWidget(StatBlockType type) {
+    final widget = FrameWidget(type: type);
+    state = state.copyWith(widgets: [...state.widgets, widget]);
+  }
+
+  void removeWidget(int id) {
+    state = state.copyWith(
+      widgets: state.widgets.where((widget) => widget.id != id).toList(),
+    );
+  }
+
+  void moveWidget(int id, Offset position) {
+    state = state.copyWith(
+      widgets: [
+        for (final widget in state.widgets)
+          if (widget.id == id) widget.copyWith(position: position) else widget,
+      ],
+    );
   }
 }
 

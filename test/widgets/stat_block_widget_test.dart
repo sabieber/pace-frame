@@ -100,5 +100,76 @@ void main() {
       final valueText = tester.widget<Text>(find.text('1h 30m'));
       expect(valueText.style?.fontWeight, FontWeight.bold);
     });
+
+    testWidgets('does not show delete button by default', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: StatBlockWidget(label: 'Pace', value: '5:30 /km'),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.close), findsNothing);
+    });
+
+    testWidgets('does not show delete button in edit mode without callback', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: StatBlockWidget(
+              label: 'Pace',
+              value: '5:30 /km',
+              editMode: true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.close), findsNothing);
+    });
+
+    testWidgets('shows delete button in edit mode with callback', (
+      tester,
+    ) async {
+      var deleted = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatBlockWidget(
+              label: 'Pace',
+              value: '5:30 /km',
+              editMode: true,
+              onDelete: () => deleted = true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.close), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.close));
+      expect(deleted, isTrue);
+    });
+
+    testWidgets('hides delete button when edit mode is false even with callback', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatBlockWidget(
+              label: 'Pace',
+              value: '5:30 /km',
+              editMode: false,
+              onDelete: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.close), findsNothing);
+    });
   });
 }

@@ -2,7 +2,7 @@
 ///
 /// [FrameConfig] is the top-level model persisted in the editor provider:
 /// it holds the chosen aspect ratio, background (solid color or image),
-/// the list of stat blocks with their enabled state, and whether the
+/// the list of frame widgets with their positions, and whether the
 /// route outline is shown.
 library;
 
@@ -38,14 +38,25 @@ class FrameBackground {
 
 enum StatBlockType { distance, duration, avgPace, avgWatts, avgHr, elevation }
 
-class StatBlock {
-  const StatBlock({required this.type, this.enabled = true});
+class FrameWidget {
+  FrameWidget({required this.type, Offset? position})
+    : id = _nextId++,
+      position = position ?? const Offset(0.5, 0.5);
 
+  FrameWidget._({required this.id, required this.type, required this.position});
+
+  static int _nextId = 0;
+
+  final int id;
   final StatBlockType type;
-  final bool enabled;
+  final Offset position;
 
-  StatBlock copyWith({StatBlockType? type, bool? enabled}) {
-    return StatBlock(type: type ?? this.type, enabled: enabled ?? this.enabled);
+  FrameWidget copyWith({StatBlockType? type, Offset? position}) {
+    return FrameWidget._(
+      id: id,
+      type: type ?? this.type,
+      position: position ?? this.position,
+    );
   }
 }
 
@@ -54,14 +65,7 @@ class FrameConfig {
     required this.activityId,
     this.aspectRatio = AspectRatioPreset.story9x16,
     this.background = const FrameBackground(),
-    this.statBlocks = const [
-      StatBlock(type: StatBlockType.distance),
-      StatBlock(type: StatBlockType.duration),
-      StatBlock(type: StatBlockType.avgPace),
-      StatBlock(type: StatBlockType.avgWatts),
-      StatBlock(type: StatBlockType.avgHr),
-      StatBlock(type: StatBlockType.elevation),
-    ],
+    this.widgets = const [],
     this.showRoute = true,
     this.trimEndpoints = true,
   });
@@ -69,7 +73,7 @@ class FrameConfig {
   final int activityId;
   final AspectRatioPreset aspectRatio;
   final FrameBackground background;
-  final List<StatBlock> statBlocks;
+  final List<FrameWidget> widgets;
   final bool showRoute;
   final bool trimEndpoints;
 
@@ -77,7 +81,7 @@ class FrameConfig {
     int? activityId,
     AspectRatioPreset? aspectRatio,
     FrameBackground? background,
-    List<StatBlock>? statBlocks,
+    List<FrameWidget>? widgets,
     bool? showRoute,
     bool? trimEndpoints,
   }) {
@@ -85,7 +89,7 @@ class FrameConfig {
       activityId: activityId ?? this.activityId,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       background: background ?? this.background,
-      statBlocks: statBlocks ?? this.statBlocks,
+      widgets: widgets ?? this.widgets,
       showRoute: showRoute ?? this.showRoute,
       trimEndpoints: trimEndpoints ?? this.trimEndpoints,
     );

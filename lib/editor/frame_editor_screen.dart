@@ -2,10 +2,11 @@
 ///
 /// Renders a fixed-size preview inside a [RepaintBoundary] with a colored
 /// or image background, an optional route outline (via [RoutePainter]),
-/// and toggleable stat blocks. A bottom toolbar lets the user switch
-/// aspect-ratio presets, pick backgrounds, and toggle individual stats.
-/// Export captures the boundary at target pixel ratio and shares via
-/// the system share sheet.
+/// and draggable stat widgets. A bottom toolbar lets the user switch
+/// aspect-ratio presets, pick backgrounds, add widgets, and toggle the
+/// route. Widgets can be freely positioned via drag-and-drop and deleted
+/// via a corner button. Export captures the boundary at target pixel
+/// ratio and shares via the system share sheet.
 library;
 
 import 'dart:io';
@@ -35,6 +36,12 @@ class FrameEditorScreen extends ConsumerStatefulWidget {
 class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
   final _boundaryKey = GlobalKey();
   final _picker = ImagePicker();
+  bool _editMode = true;
+  int? _draggingId;
+  double _dragDx = 0;
+  double _dragDy = 0;
+  final _widgetKeys = <int, GlobalKey>{};
+  Size _dragWidgetSize = Size.zero;
 
   @override
   void initState() {
@@ -74,9 +81,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     final logicalSize = config.aspectRatio.sizeFor(
       MediaQuery.of(context).size.width - 32,
     );
-    final polylineAsync = ref.watch(
-      detailPolylineProvider(widget.activity.id),
-    );
+    final polylineAsync = ref.watch(detailPolylineProvider(widget.activity.id));
 
     return Center(
       child: RepaintBoundary(
@@ -126,13 +131,9 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                           )
                         : const SizedBox.shrink(),
                   ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _buildStatsOverlay(config),
-                ),
                 Positioned(left: 0, right: 0, top: 0, child: _buildHeader()),
+                for (final widget in config.widgets)
+                  _buildDraggableWidget(widget, logicalSize),
               ],
             ),
           ),
@@ -170,68 +171,102 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     );
   }
 
-  Widget _buildStatsOverlay(FrameConfig config) {
-    final blocks = config.statBlocks.where((b) => b.enabled).toList();
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 12, 8, 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [Colors.black.withValues(alpha: 0.6), Colors.transparent],
+  Widget _buildDraggableWidget(FrameWidget widget, Size logicalSize) {
+    final baseDx = widget.position.dx * logicalSize.width;
+    final baseDy = widget.position.dy * logicalSize.height;
+    final dx = widget.id == _draggingId ? baseDx + _dragDx : baseDx;
+    final dy = widget.id == _draggingId ? baseDy + _dragDy : baseDy;
+
+    final key = _widgetKeys.putIfAbsent(widget.id, GlobalKey.new);
+
+    return Positioned(
+      key: ValueKey(widget.id),
+      left: dx,
+      top: dy,
+      child: GestureDetector(
+        onPanStart: (_) {
+          final box = key.currentContext?.findRenderObject() as RenderBox?;
+          _dragWidgetSize = box?.size ?? Size.zero;
+          setState(() {
+            _draggingId = widget.id;
+            _dragDx = 0;
+            _dragDy = 0;
+          });
+        },
+        onPanUpdate: (details) {
+          final maxDx = logicalSize.width - baseDx - _dragWidgetSize.width;
+          final maxDy = logicalSize.height - baseDy - _dragWidgetSize.height;
+          final newDx = (_dragDx + details.delta.dx).clamp(-baseDx, maxDx);
+          final newDy = (_dragDy + details.delta.dy).clamp(-baseDy, maxDy);
+          setState(() {
+            _dragDx = newDx;
+            _dragDy = newDy;
+          });
+        },
+        onPanEnd: (_) {
+          final newX = (baseDx + _dragDx) / logicalSize.width;
+          final newY = (baseDy + _dragDy) / logicalSize.height;
+          ref
+              .read(frameConfigProvider.notifier)
+              .moveWidget(
+                widget.id,
+                Offset(newX.clamp(0.0, 1.0), newY.clamp(0.0, 1.0)),
+              );
+          setState(() => _draggingId = null);
+        },
+        child: KeyedSubtree(
+          key: key,
+          child: StatBlockWidget(
+            label: _labelFor(widget.type),
+            value: _valueFor(widget.type),
+            editMode: _editMode,
+            onDelete: _editMode
+                ? () => ref
+                      .read(frameConfigProvider.notifier)
+                      .removeWidget(widget.id)
+                : null,
+          ),
         ),
-      ),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 8,
-        children: blocks.map((b) => _statBlockFor(b.type)).toList(),
       ),
     );
   }
 
-  Widget _statBlockFor(StatBlockType type) {
-    final a = widget.activity;
+  String _labelFor(StatBlockType type) {
+    return switch (type) {
+      StatBlockType.distance => 'Distance',
+      StatBlockType.duration => 'Duration',
+      StatBlockType.avgPace => 'Pace',
+      StatBlockType.avgWatts => 'Avg Power',
+      StatBlockType.avgHr => 'Avg HR',
+      StatBlockType.elevation => 'Elevation',
+    };
+  }
+
+  String _valueFor(StatBlockType type) {
+    final activity = widget.activity;
     switch (type) {
       case StatBlockType.distance:
-        return StatBlockWidget(
-          label: 'Distance',
-          value: '${(a.distance / 1000).toStringAsFixed(1)} km',
-        );
+        return '${(activity.distance / 1000).toStringAsFixed(1)} km';
       case StatBlockType.duration:
-        return StatBlockWidget(
-          label: 'Duration',
-          value: _formatDuration(a.movingTime),
-        );
+        return _formatDuration(activity.movingTime);
       case StatBlockType.avgPace:
-        if (a.distance <= 0) {
-          return const StatBlockWidget(label: 'Pace', value: '—');
-        }
-        final pace = a.movingTime / (a.distance / 1000);
+        if (activity.distance <= 0) return '—';
+        final pace = activity.movingTime / (activity.distance / 1000);
         final mins = pace ~/ 60;
         final secs = (pace % 60).round();
-        return StatBlockWidget(
-          label: 'Pace',
-          value: '$mins:${secs.toString().padLeft(2, '0')} /km',
-        );
+        return '$mins:${secs.toString().padLeft(2, '0')} /km';
       case StatBlockType.avgWatts:
-        return StatBlockWidget(
-          label: 'Avg Power',
-          value: a.averageWatts != null ? '${a.averageWatts!.round()} W' : '—',
-        );
+        return activity.averageWatts != null
+            ? '${activity.averageWatts!.round()} W'
+            : '—';
       case StatBlockType.avgHr:
-        return StatBlockWidget(
-          label: 'Avg HR',
-          value: a.averageHeartRate != null
-              ? '${a.averageHeartRate!.round()} bpm'
-              : '—',
-        );
+        return activity.averageHeartRate != null
+            ? '${activity.averageHeartRate!.round()} bpm'
+            : '—';
       case StatBlockType.elevation:
-        return StatBlockWidget(
-          label: 'Elevation',
-          value: a.elevationGain != null
-              ? '${a.elevationGain!.round()} m'
-              : '—',
-        );
+        return activity.elevationGain != null
+            ? '${activity.elevationGain!.round()} m'
+            : '—';
     }
   }
 
@@ -255,9 +290,9 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
             onTap: () => _showBackgroundPicker(context, config),
           ),
           _ToolbarButton(
-            icon: Icons.bar_chart,
-            label: 'Stats',
-            onTap: () => _showStatsPicker(context, config),
+            icon: Icons.add_circle_outline,
+            label: 'Add',
+            onTap: () => _showAddWidgetSheet(context, config),
           ),
           _ToolbarButton(
             icon: config.showRoute ? Icons.route : Icons.route_outlined,
@@ -265,6 +300,48 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
             onTap: () => _showRouteOptions(context, config),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAddWidgetSheet(BuildContext context, FrameConfig config) {
+    final presentTypes = config.widgets.map((w) => w.type).toSet();
+    final available = StatBlockType.values
+        .where((t) => !presentTypes.contains(t))
+        .toList();
+
+    if (available.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('All stat blocks are already added')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Add Widget',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            ...available.map((type) {
+              return ListTile(
+                title: Text(_labelFor(type)),
+                onTap: () {
+                  ref.read(frameConfigProvider.notifier).addWidget(type);
+                  Navigator.pop(ctx);
+                },
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -320,9 +397,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                 ),
                 SwitchListTile(
                   title: const Text('Trim Endpoints'),
-                  subtitle: const Text(
-                    'Hide start/end for privacy',
-                  ),
+                  subtitle: const Text('Hide start/end for privacy'),
                   value: trimEndpoints,
                   onChanged: (v) => setModalState(() => trimEndpoints = v),
                 ),
@@ -330,12 +405,14 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                   padding: const EdgeInsets.all(16),
                   child: FilledButton(
                     onPressed: () {
-                      ref.read(frameConfigProvider.notifier).update(
-                        config.copyWith(
-                          showRoute: showRoute,
-                          trimEndpoints: trimEndpoints,
-                        ),
-                      );
+                      ref
+                          .read(frameConfigProvider.notifier)
+                          .update(
+                            config.copyWith(
+                              showRoute: showRoute,
+                              trimEndpoints: trimEndpoints,
+                            ),
+                          );
                       Navigator.pop(ctx);
                     },
                     child: const Text('Done'),
@@ -487,65 +564,6 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     );
   }
 
-  void _showStatsPicker(BuildContext context, FrameConfig config) {
-    final blocks = List<StatBlock>.from(config.statBlocks);
-
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setModalState) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Text(
-                    'Stat Blocks',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                ...blocks.asMap().entries.map((entry) {
-                  final block = entry.value;
-                  final label = switch (block.type) {
-                    StatBlockType.distance => 'Distance',
-                    StatBlockType.duration => 'Duration',
-                    StatBlockType.avgPace => 'Avg Pace',
-                    StatBlockType.avgWatts => 'Avg Power',
-                    StatBlockType.avgHr => 'Avg Heart Rate',
-                    StatBlockType.elevation => 'Elevation',
-                  };
-                  return SwitchListTile(
-                    title: Text(label),
-                    value: block.enabled,
-                    onChanged: (v) {
-                      setModalState(() {
-                        blocks[entry.key] = block.copyWith(enabled: v);
-                      });
-                    },
-                  );
-                }),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: FilledButton(
-                    onPressed: () {
-                      ref
-                          .read(frameConfigProvider.notifier)
-                          .update(config.copyWith(statBlocks: blocks));
-                      Navigator.pop(ctx);
-                    },
-                    child: const Text('Done'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Future<void> _export(BuildContext context) async {
     final config = ref.read(frameConfigProvider);
     final targetSize = config.aspectRatio.targetExportSize;
@@ -553,6 +571,9 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       MediaQuery.of(context).size.width - 32,
     );
     final pixelRatio = targetSize.width / logicalSize.width;
+
+    setState(() => _editMode = false);
+    await WidgetsBinding.instance.endOfFrame;
 
     try {
       await exportAndShare(_boundaryKey, pixelRatio: pixelRatio);
@@ -562,6 +583,8 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
           context,
         ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
       }
+    } finally {
+      if (mounted) setState(() => _editMode = true);
     }
   }
 
