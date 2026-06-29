@@ -51,6 +51,7 @@ import '../export/exporter.dart';
 import '../models/aspect_ratio_preset.dart';
 import '../models/frame_config.dart';
 import 'detail_polyline_provider.dart';
+import 'frame_color_picker.dart';
 import 'frame_config_provider.dart';
 import 'route_widget.dart';
 import 'stat_block_widget.dart';
@@ -416,6 +417,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
         polyline: polyline!,
         size: routeWidgetSize! * scale,
         trimEndpoints: frameWidget.trimEndpoints,
+        routeColor: frameWidget.routeColor,
         editMode: _editMode,
       );
     }
@@ -427,6 +429,9 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       showTitle: frameWidget.showTitle,
       showIcon: frameWidget.showIcon,
       icon: _iconFor(frameWidget.type),
+      labelColor: frameWidget.titleColor,
+      valueColor: frameWidget.valueColor,
+      iconColor: frameWidget.iconColor,
     );
   }
 
@@ -896,6 +901,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       (widget) => widget.id == routeWidgetId,
     );
     var trimEndpoints = routeWidget.trimEndpoints;
+    var routeColor = routeWidget.routeColor;
 
     showModalBottomSheet(
       context: context,
@@ -920,6 +926,28 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                   onChanged: (value) =>
                       setModalState(() => trimEndpoints = value),
                 ),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Text(
+                    'Colors',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                _ColorListTile(
+                  label: 'Route Line Color',
+                  color: routeColor,
+                  onTap: () async {
+                    final picked = await showFrameColorPicker(
+                      context: ctx,
+                      initialColor: routeColor,
+                      title: 'Route Line Color',
+                    );
+                    if (picked != null) {
+                      setModalState(() => routeColor = picked);
+                    }
+                  },
+                ),
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: FilledButton(
@@ -928,7 +956,10 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
                           .read(frameConfigProvider.notifier)
                           .updateWidget(
                             routeWidgetId,
-                            routeWidget.copyWith(trimEndpoints: trimEndpoints),
+                            routeWidget.copyWith(
+                              trimEndpoints: trimEndpoints,
+                              routeColor: routeColor,
+                            ),
                           );
                       Navigator.pop(ctx);
                     },
@@ -949,54 +980,116 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     );
     var showTitle = statWidget.showTitle;
     var showIcon = statWidget.showIcon;
+    var iconColor = statWidget.iconColor;
+    var titleColor = statWidget.titleColor;
+    var valueColor = statWidget.valueColor;
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) {
           return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Text(
-                    '${_labelFor(statWidget.type)} Settings',
-                    style: Theme.of(context).textTheme.titleMedium,
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Text(
+                      '${_labelFor(statWidget.type)} Settings',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                   ),
-                ),
-                SwitchListTile(
-                  title: const Text('Show Title'),
-                  value: showTitle,
-                  onChanged: (value) =>
-                      setModalState(() => showTitle = value),
-                ),
-                SwitchListTile(
-                  title: const Text('Show Icon'),
-                  value: showIcon,
-                  onChanged: (value) =>
-                      setModalState(() => showIcon = value),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: FilledButton(
-                    onPressed: () {
-                      ref
-                          .read(frameConfigProvider.notifier)
-                          .updateWidget(
-                            statWidgetId,
-                            statWidget.copyWith(
-                              showTitle: showTitle,
-                              showIcon: showIcon,
-                            ),
-                          );
-                      Navigator.pop(ctx);
+                  SwitchListTile(
+                    title: const Text('Show Title'),
+                    value: showTitle,
+                    onChanged: (value) =>
+                        setModalState(() => showTitle = value),
+                  ),
+                  SwitchListTile(
+                    title: const Text('Show Icon'),
+                    value: showIcon,
+                    onChanged: (value) =>
+                        setModalState(() => showIcon = value),
+                  ),
+                  const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: Text(
+                      'Colors',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  _ColorListTile(
+                    label: 'Icon Color',
+                    color: iconColor,
+                    onTap: () async {
+                      final picked = await showFrameColorPicker(
+                        context: ctx,
+                        initialColor: iconColor,
+                        title: 'Icon Color',
+                      );
+                      if (picked != null) {
+                        setModalState(() => iconColor = picked);
+                      }
                     },
-                    child: const Text('Done'),
                   ),
-                ),
-              ],
+                  _ColorListTile(
+                    label: 'Title Color',
+                    color: titleColor,
+                    onTap: () async {
+                      final picked = await showFrameColorPicker(
+                        context: ctx,
+                        initialColor: titleColor,
+                        title: 'Title Color',
+                      );
+                      if (picked != null) {
+                        setModalState(() => titleColor = picked);
+                      }
+                    },
+                  ),
+                  _ColorListTile(
+                    label: 'Value Color',
+                    color: valueColor,
+                    onTap: () async {
+                      final picked = await showFrameColorPicker(
+                        context: ctx,
+                        initialColor: valueColor,
+                        title: 'Value Color',
+                      );
+                      if (picked != null) {
+                        setModalState(() => valueColor = picked);
+                      }
+                    },
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: FilledButton(
+                      onPressed: () {
+                        ref
+                            .read(frameConfigProvider.notifier)
+                            .updateWidget(
+                              statWidgetId,
+                              statWidget.copyWith(
+                                showTitle: showTitle,
+                                showIcon: showIcon,
+                                iconColor: iconColor,
+                                titleColor: titleColor,
+                                valueColor: valueColor,
+                              ),
+                            );
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Done'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -1073,73 +1166,24 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     );
   }
 
-  void _showColorPicker(BuildContext context, FrameConfig config) {
-    const colors = [
-      Color(0xFF1A1A2E),
-      Color(0xFF16213E),
-      Color(0xFF0F3460),
-      Color(0xFF533483),
-      Color(0xFFE94560),
-      Color(0xFF2D2D2D),
-      Color(0xFF1B4332),
-      Color(0xFFD4A373),
-    ];
-
-    showModalBottomSheet(
+  Future<void> _showColorPicker(BuildContext context, FrameConfig config) async {
+    final picked = await showFrameColorPicker(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Background Color',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: colors.map((color) {
-                  final isSelected = config.background.color == color;
-                  return GestureDetector(
-                    onTap: () {
-                      ref
-                          .read(frameConfigProvider.notifier)
-                          .update(
-                            config.copyWith(
-                              background: FrameBackground(
-                                type: BackgroundType.color,
-                                color: color,
-                              ),
-                            ),
-                          );
-                      Navigator.pop(ctx);
-                    },
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected
-                              ? Colors.white
-                              : Colors.grey.shade400,
-                          width: isSelected ? 3 : 1,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        ),
-      ),
+      initialColor: config.background.color,
+      title: 'Background Color',
     );
+    if (picked != null) {
+      ref
+          .read(frameConfigProvider.notifier)
+          .update(
+            config.copyWith(
+              background: FrameBackground(
+                type: BackgroundType.color,
+                color: picked,
+              ),
+            ),
+          );
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1184,6 +1228,42 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
 // =============================================================================
 // Private widgets
 // =============================================================================
+
+class _ColorListTile extends StatelessWidget {
+  const _ColorListTile({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(label),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey.shade400, width: 1),
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+      onTap: onTap,
+    );
+  }
+}
 
 class _ToolbarButton extends StatelessWidget {
   const _ToolbarButton({

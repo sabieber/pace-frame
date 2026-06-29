@@ -54,6 +54,10 @@ class FrameWidget {
     this.showTitle = true,
     this.showIcon = true,
     this.scale = 1.0,
+    this.iconColor = const Color(0xFFFFFFFF),
+    this.titleColor = const Color(0xB3FFFFFF),
+    this.valueColor = const Color(0xFFFFFFFF),
+    this.routeColor = const Color(0xFFFFFFFF),
   }) : id = _nextId++,
         position = position ?? const Offset(0.5, 0.5);
 
@@ -65,6 +69,10 @@ class FrameWidget {
     required this.showTitle,
     required this.showIcon,
     required this.scale,
+    required this.iconColor,
+    required this.titleColor,
+    required this.valueColor,
+    required this.routeColor,
   });
 
   static int _nextId = 0;
@@ -76,6 +84,10 @@ class FrameWidget {
   final bool showTitle;
   final bool showIcon;
   final double scale;
+  final Color iconColor;
+  final Color titleColor;
+  final Color valueColor;
+  final Color routeColor;
 
   FrameWidget copyWith({
     FrameWidgetType? type,
@@ -84,6 +96,10 @@ class FrameWidget {
     bool? showTitle,
     bool? showIcon,
     double? scale,
+    Color? iconColor,
+    Color? titleColor,
+    Color? valueColor,
+    Color? routeColor,
   }) {
     return FrameWidget._(
       id: id,
@@ -93,6 +109,10 @@ class FrameWidget {
       showTitle: showTitle ?? this.showTitle,
       showIcon: showIcon ?? this.showIcon,
       scale: scale ?? this.scale,
+      iconColor: iconColor ?? this.iconColor,
+      titleColor: titleColor ?? this.titleColor,
+      valueColor: valueColor ?? this.valueColor,
+      routeColor: routeColor ?? this.routeColor,
     );
   }
 }

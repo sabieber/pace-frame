@@ -21,6 +21,7 @@ dependencies:
   google_polyline_algorithm: ^3.1.0
   share_plus: ^13.1.0
   intl: ^0.20.2
+  flutter_colorpicker: ^1.1.0
 
 dev_dependencies:
   flutter_test:

@@ -15,6 +15,7 @@ class StatBlockWidget extends StatelessWidget {
     required this.value,
     this.labelColor = Colors.white70,
     this.valueColor = Colors.white,
+    this.iconColor,
     this.scale = 1.0,
     this.showTitle = true,
     this.showIcon = true,
@@ -27,6 +28,7 @@ class StatBlockWidget extends StatelessWidget {
   final String value;
   final Color labelColor;
   final Color valueColor;
+  final Color? iconColor;
 
   /// Uniform scale factor applied to all text sizes, spacing, and padding
   /// so the block lays out at its true scaled size (no paint-only transform).
@@ -51,7 +53,7 @@ class StatBlockWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (showIcon && icon != null) ...[
-                Icon(icon, size: 22 * scale, color: valueColor),
+                Icon(icon, size: 22 * scale, color: iconColor ?? valueColor),
                 SizedBox(width: 8 * scale),
               ],
               Column(

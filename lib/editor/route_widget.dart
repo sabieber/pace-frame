@@ -17,6 +17,7 @@ class RouteWidget extends StatelessWidget {
     required this.polyline,
     required this.size,
     this.trimEndpoints = true,
+    this.routeColor = Colors.white,
     this.editMode = false,
     this.onDelete,
     this.onSettings,
@@ -25,6 +26,7 @@ class RouteWidget extends StatelessWidget {
   final String polyline;
   final Size size;
   final bool trimEndpoints;
+  final Color routeColor;
   final bool editMode;
   final VoidCallback? onDelete;
   final VoidCallback? onSettings;
@@ -54,6 +56,7 @@ class RouteWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: RoutePainter(
                 polyline: polyline,
+                color: routeColor,
                 trimEndpoints: trimEndpoints,
               ),
             ),

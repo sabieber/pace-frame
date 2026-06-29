@@ -64,6 +64,72 @@ void main() {
       expect(copy.position, hrWidget.position);
       expect(copy.trimEndpoints, hrWidget.trimEndpoints);
     });
+
+    test('defaults colors to white variants', () {
+      final widget = FrameWidget(type: FrameWidgetType.distance);
+      expect(widget.iconColor, const Color(0xFFFFFFFF));
+      expect(widget.titleColor, const Color(0xB3FFFFFF));
+      expect(widget.valueColor, const Color(0xFFFFFFFF));
+      expect(widget.routeColor, const Color(0xFFFFFFFF));
+    });
+
+    test('copyWith overrides iconColor', () {
+      final widget = FrameWidget(type: FrameWidgetType.distance);
+      final updated = widget.copyWith(iconColor: const Color(0xFFFF0000));
+      expect(updated.iconColor, const Color(0xFFFF0000));
+      expect(updated.id, widget.id);
+      expect(updated.valueColor, widget.valueColor);
+    });
+
+    test('copyWith overrides titleColor', () {
+      final widget = FrameWidget(type: FrameWidgetType.distance);
+      final updated = widget.copyWith(titleColor: const Color(0xFF00FF00));
+      expect(updated.titleColor, const Color(0xFF00FF00));
+      expect(updated.id, widget.id);
+    });
+
+    test('copyWith overrides valueColor', () {
+      final widget = FrameWidget(type: FrameWidgetType.distance);
+      final updated = widget.copyWith(valueColor: const Color(0xFF0000FF));
+      expect(updated.valueColor, const Color(0xFF0000FF));
+      expect(updated.id, widget.id);
+    });
+
+    test('copyWith overrides routeColor', () {
+      final widget = FrameWidget(type: FrameWidgetType.route);
+      final updated = widget.copyWith(routeColor: const Color(0xFFFF00FF));
+      expect(updated.routeColor, const Color(0xFFFF00FF));
+      expect(updated.id, widget.id);
+    });
+
+    test('copyWith overrides all colors at once', () {
+      final widget = FrameWidget(type: FrameWidgetType.distance);
+      final updated = widget.copyWith(
+        iconColor: const Color(0xFF111111),
+        titleColor: const Color(0xFF222222),
+        valueColor: const Color(0xFF333333),
+        routeColor: const Color(0xFF444444),
+      );
+      expect(updated.iconColor, const Color(0xFF111111));
+      expect(updated.titleColor, const Color(0xFF222222));
+      expect(updated.valueColor, const Color(0xFF333333));
+      expect(updated.routeColor, const Color(0xFF444444));
+    });
+
+    test('copyWith preserves unspecified colors', () {
+      final widget = FrameWidget(
+        type: FrameWidgetType.distance,
+        iconColor: const Color(0xFFAAAAAA),
+        titleColor: const Color(0xFFBBBBBB),
+        valueColor: const Color(0xFFCCCCCC),
+        routeColor: const Color(0xFFDDDDDD),
+      );
+      final copy = widget.copyWith(position: const Offset(0.1, 0.2));
+      expect(copy.iconColor, const Color(0xFFAAAAAA));
+      expect(copy.titleColor, const Color(0xFFBBBBBB));
+      expect(copy.valueColor, const Color(0xFFCCCCCC));
+      expect(copy.routeColor, const Color(0xFFDDDDDD));
+    });
   });
 
   group('FrameBackground', () {
