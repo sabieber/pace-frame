@@ -14,16 +14,30 @@ class RoutePainter extends StatelessWidget {
     required this.polyline,
     this.color = Colors.white,
     this.strokeWidth = 3.0,
+    this.trimEndpoints = false,
+    this.trimFraction = 0.05,
   });
 
   final String polyline;
   final Color color;
   final double strokeWidth;
+  final bool trimEndpoints;
+  final double trimFraction;
 
   @override
   Widget build(BuildContext context) {
-    final coordinates = decodePolyline(polyline);
+    var coordinates = decodePolyline(polyline);
     if (coordinates.isEmpty) return const SizedBox.shrink();
+
+    if (trimEndpoints && coordinates.length > 2) {
+      final trimCount = (coordinates.length * trimFraction).floor();
+      if (trimCount > 0 && trimCount * 2 < coordinates.length) {
+        coordinates = coordinates.sublist(
+          trimCount,
+          coordinates.length - trimCount,
+        );
+      }
+    }
 
     return CustomPaint(
       painter: _RouteCustomPainter(

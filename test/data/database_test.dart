@@ -55,6 +55,7 @@ void main() {
       expect(row.averageHeartRate, isNull);
       expect(row.elevationGain, isNull);
       expect(row.summaryPolyline, isNull);
+      expect(row.polyline, isNull);
     });
 
     test('upsert updates existing activity by id', () async {

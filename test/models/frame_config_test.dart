@@ -81,6 +81,7 @@ void main() {
       expect(config.background.type, BackgroundType.color);
       expect(config.statBlocks, hasLength(6));
       expect(config.showRoute, isTrue);
+      expect(config.trimEndpoints, isTrue);
     });
 
     test('default statBlocks cover all types', () {
@@ -114,6 +115,12 @@ void main() {
       expect(noRoute.showRoute, isFalse);
     });
 
+    test('copyWith overrides trimEndpoints', () {
+      const config = FrameConfig(activityId: 1);
+      final noTrim = config.copyWith(trimEndpoints: false);
+      expect(noTrim.trimEndpoints, isFalse);
+    });
+
     test('copyWith overrides background', () {
       const config = FrameConfig(activityId: 1);
       final custom = config.copyWith(
@@ -142,11 +149,13 @@ void main() {
         activityId: 7,
         aspectRatio: AspectRatioPreset.post4x5,
         showRoute: false,
+        trimEndpoints: false,
       );
       final copy = config.copyWith();
       expect(copy.activityId, config.activityId);
       expect(copy.aspectRatio, config.aspectRatio);
       expect(copy.showRoute, config.showRoute);
+      expect(copy.trimEndpoints, config.trimEndpoints);
       expect(copy.statBlocks, hasLength(config.statBlocks.length));
     });
   });

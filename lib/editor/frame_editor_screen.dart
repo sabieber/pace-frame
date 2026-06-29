@@ -18,6 +18,7 @@ import '../data/database.dart';
 import '../export/exporter.dart';
 import '../models/aspect_ratio_preset.dart';
 import '../models/frame_config.dart';
+import 'detail_polyline_provider.dart';
 import 'frame_config_provider.dart';
 import 'route_painter.dart';
 import 'stat_block_widget.dart';
@@ -73,6 +74,9 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
     final logicalSize = config.aspectRatio.sizeFor(
       MediaQuery.of(context).size.width - 32,
     );
+    final polylineAsync = ref.watch(
+      detailPolylineProvider(widget.activity.id),
+    );
 
     return Center(
       child: RepaintBoundary(
@@ -85,14 +89,42 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
               fit: StackFit.expand,
               children: [
                 _buildBackground(config),
-                if (config.showRoute && widget.activity.summaryPolyline != null)
-                  Positioned.fill(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: RoutePainter(
-                        polyline: widget.activity.summaryPolyline!,
-                      ),
-                    ),
+                if (config.showRoute)
+                  polylineAsync.when(
+                    data: (polyline) {
+                      if (polyline == null) return const SizedBox.shrink();
+                      return Positioned.fill(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: RoutePainter(
+                            polyline: polyline,
+                            trimEndpoints: config.trimEndpoints,
+                          ),
+                        ),
+                      );
+                    },
+                    loading: () => widget.activity.summaryPolyline != null
+                        ? Positioned.fill(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: RoutePainter(
+                                polyline: widget.activity.summaryPolyline!,
+                                trimEndpoints: config.trimEndpoints,
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                    error: (_, _) => widget.activity.summaryPolyline != null
+                        ? Positioned.fill(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: RoutePainter(
+                                polyline: widget.activity.summaryPolyline!,
+                                trimEndpoints: config.trimEndpoints,
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 Positioned(
                   left: 0,
@@ -230,11 +262,7 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
           _ToolbarButton(
             icon: config.showRoute ? Icons.route : Icons.route_outlined,
             label: 'Route',
-            onTap: () {
-              ref
-                  .read(frameConfigProvider.notifier)
-                  .update(config.copyWith(showRoute: !config.showRoute));
-            },
+            onTap: () => _showRouteOptions(context, config),
           ),
         ],
       ),
@@ -262,6 +290,61 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
             );
           }).toList(),
         ),
+      ),
+    );
+  }
+
+  void _showRouteOptions(BuildContext context, FrameConfig config) {
+    var showRoute = config.showRoute;
+    var trimEndpoints = config.trimEndpoints;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Text(
+                    'Route Options',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                SwitchListTile(
+                  title: const Text('Show Route'),
+                  value: showRoute,
+                  onChanged: (v) => setModalState(() => showRoute = v),
+                ),
+                SwitchListTile(
+                  title: const Text('Trim Endpoints'),
+                  subtitle: const Text(
+                    'Hide start/end for privacy',
+                  ),
+                  value: trimEndpoints,
+                  onChanged: (v) => setModalState(() => trimEndpoints = v),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FilledButton(
+                    onPressed: () {
+                      ref.read(frameConfigProvider.notifier).update(
+                        config.copyWith(
+                          showRoute: showRoute,
+                          trimEndpoints: trimEndpoints,
+                        ),
+                      );
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Done'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

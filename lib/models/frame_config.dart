@@ -63,6 +63,7 @@ class FrameConfig {
       StatBlock(type: StatBlockType.elevation),
     ],
     this.showRoute = true,
+    this.trimEndpoints = true,
   });
 
   final int activityId;
@@ -70,6 +71,7 @@ class FrameConfig {
   final FrameBackground background;
   final List<StatBlock> statBlocks;
   final bool showRoute;
+  final bool trimEndpoints;
 
   FrameConfig copyWith({
     int? activityId,
@@ -77,6 +79,7 @@ class FrameConfig {
     FrameBackground? background,
     List<StatBlock>? statBlocks,
     bool? showRoute,
+    bool? trimEndpoints,
   }) {
     return FrameConfig(
       activityId: activityId ?? this.activityId,
@@ -84,6 +87,7 @@ class FrameConfig {
       background: background ?? this.background,
       statBlocks: statBlocks ?? this.statBlocks,
       showRoute: showRoute ?? this.showRoute,
+      trimEndpoints: trimEndpoints ?? this.trimEndpoints,
     );
   }
 }

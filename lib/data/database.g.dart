@@ -113,6 +113,17 @@ class $ActivitiesTable extends Activities
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _polylineMeta = const VerificationMeta(
+    'polyline',
+  );
+  @override
+  late final GeneratedColumn<String> polyline = GeneratedColumn<String>(
+    'polyline',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -125,6 +136,7 @@ class $ActivitiesTable extends Activities
     averageHeartRate,
     elevationGain,
     summaryPolyline,
+    polyline,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -217,6 +229,12 @@ class $ActivitiesTable extends Activities
         ),
       );
     }
+    if (data.containsKey('polyline')) {
+      context.handle(
+        _polylineMeta,
+        polyline.isAcceptableOrUnknown(data['polyline']!, _polylineMeta),
+      );
+    }
     return context;
   }
 
@@ -266,6 +284,10 @@ class $ActivitiesTable extends Activities
         DriftSqlType.string,
         data['${effectivePrefix}summary_polyline'],
       ),
+      polyline: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}polyline'],
+      ),
     );
   }
 
@@ -286,6 +308,7 @@ class Activity extends DataClass implements Insertable<Activity> {
   final double? averageHeartRate;
   final double? elevationGain;
   final String? summaryPolyline;
+  final String? polyline;
   const Activity({
     required this.id,
     required this.name,
@@ -297,6 +320,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     this.averageHeartRate,
     this.elevationGain,
     this.summaryPolyline,
+    this.polyline,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -318,6 +342,9 @@ class Activity extends DataClass implements Insertable<Activity> {
     }
     if (!nullToAbsent || summaryPolyline != null) {
       map['summary_polyline'] = Variable<String>(summaryPolyline);
+    }
+    if (!nullToAbsent || polyline != null) {
+      map['polyline'] = Variable<String>(polyline);
     }
     return map;
   }
@@ -342,6 +369,9 @@ class Activity extends DataClass implements Insertable<Activity> {
       summaryPolyline: summaryPolyline == null && nullToAbsent
           ? const Value.absent()
           : Value(summaryPolyline),
+      polyline: polyline == null && nullToAbsent
+          ? const Value.absent()
+          : Value(polyline),
     );
   }
 
@@ -361,6 +391,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       averageHeartRate: serializer.fromJson<double?>(json['averageHeartRate']),
       elevationGain: serializer.fromJson<double?>(json['elevationGain']),
       summaryPolyline: serializer.fromJson<String?>(json['summaryPolyline']),
+      polyline: serializer.fromJson<String?>(json['polyline']),
     );
   }
   @override
@@ -377,6 +408,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       'averageHeartRate': serializer.toJson<double?>(averageHeartRate),
       'elevationGain': serializer.toJson<double?>(elevationGain),
       'summaryPolyline': serializer.toJson<String?>(summaryPolyline),
+      'polyline': serializer.toJson<String?>(polyline),
     };
   }
 
@@ -391,6 +423,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     Value<double?> averageHeartRate = const Value.absent(),
     Value<double?> elevationGain = const Value.absent(),
     Value<String?> summaryPolyline = const Value.absent(),
+    Value<String?> polyline = const Value.absent(),
   }) => Activity(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -408,6 +441,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     summaryPolyline: summaryPolyline.present
         ? summaryPolyline.value
         : this.summaryPolyline,
+    polyline: polyline.present ? polyline.value : this.polyline,
   );
   Activity copyWithCompanion(ActivitiesCompanion data) {
     return Activity(
@@ -431,6 +465,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       summaryPolyline: data.summaryPolyline.present
           ? data.summaryPolyline.value
           : this.summaryPolyline,
+      polyline: data.polyline.present ? data.polyline.value : this.polyline,
     );
   }
 
@@ -446,7 +481,8 @@ class Activity extends DataClass implements Insertable<Activity> {
           ..write('averageWatts: $averageWatts, ')
           ..write('averageHeartRate: $averageHeartRate, ')
           ..write('elevationGain: $elevationGain, ')
-          ..write('summaryPolyline: $summaryPolyline')
+          ..write('summaryPolyline: $summaryPolyline, ')
+          ..write('polyline: $polyline')
           ..write(')'))
         .toString();
   }
@@ -463,6 +499,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     averageHeartRate,
     elevationGain,
     summaryPolyline,
+    polyline,
   );
   @override
   bool operator ==(Object other) =>
@@ -477,7 +514,8 @@ class Activity extends DataClass implements Insertable<Activity> {
           other.averageWatts == this.averageWatts &&
           other.averageHeartRate == this.averageHeartRate &&
           other.elevationGain == this.elevationGain &&
-          other.summaryPolyline == this.summaryPolyline);
+          other.summaryPolyline == this.summaryPolyline &&
+          other.polyline == this.polyline);
 }
 
 class ActivitiesCompanion extends UpdateCompanion<Activity> {
@@ -491,6 +529,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   final Value<double?> averageHeartRate;
   final Value<double?> elevationGain;
   final Value<String?> summaryPolyline;
+  final Value<String?> polyline;
   const ActivitiesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -502,6 +541,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.averageHeartRate = const Value.absent(),
     this.elevationGain = const Value.absent(),
     this.summaryPolyline = const Value.absent(),
+    this.polyline = const Value.absent(),
   });
   ActivitiesCompanion.insert({
     this.id = const Value.absent(),
@@ -514,6 +554,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.averageHeartRate = const Value.absent(),
     this.elevationGain = const Value.absent(),
     this.summaryPolyline = const Value.absent(),
+    this.polyline = const Value.absent(),
   }) : name = Value(name),
        type = Value(type),
        startDate = Value(startDate),
@@ -530,6 +571,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Expression<double>? averageHeartRate,
     Expression<double>? elevationGain,
     Expression<String>? summaryPolyline,
+    Expression<String>? polyline,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -542,6 +584,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       if (averageHeartRate != null) 'average_heart_rate': averageHeartRate,
       if (elevationGain != null) 'elevation_gain': elevationGain,
       if (summaryPolyline != null) 'summary_polyline': summaryPolyline,
+      if (polyline != null) 'polyline': polyline,
     });
   }
 
@@ -556,6 +599,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Value<double?>? averageHeartRate,
     Value<double?>? elevationGain,
     Value<String?>? summaryPolyline,
+    Value<String?>? polyline,
   }) {
     return ActivitiesCompanion(
       id: id ?? this.id,
@@ -568,6 +612,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       averageHeartRate: averageHeartRate ?? this.averageHeartRate,
       elevationGain: elevationGain ?? this.elevationGain,
       summaryPolyline: summaryPolyline ?? this.summaryPolyline,
+      polyline: polyline ?? this.polyline,
     );
   }
 
@@ -604,6 +649,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     if (summaryPolyline.present) {
       map['summary_polyline'] = Variable<String>(summaryPolyline.value);
     }
+    if (polyline.present) {
+      map['polyline'] = Variable<String>(polyline.value);
+    }
     return map;
   }
 
@@ -619,7 +667,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
           ..write('averageWatts: $averageWatts, ')
           ..write('averageHeartRate: $averageHeartRate, ')
           ..write('elevationGain: $elevationGain, ')
-          ..write('summaryPolyline: $summaryPolyline')
+          ..write('summaryPolyline: $summaryPolyline, ')
+          ..write('polyline: $polyline')
           ..write(')'))
         .toString();
   }
@@ -648,6 +697,7 @@ typedef $$ActivitiesTableCreateCompanionBuilder =
       Value<double?> averageHeartRate,
       Value<double?> elevationGain,
       Value<String?> summaryPolyline,
+      Value<String?> polyline,
     });
 typedef $$ActivitiesTableUpdateCompanionBuilder =
     ActivitiesCompanion Function({
@@ -661,6 +711,7 @@ typedef $$ActivitiesTableUpdateCompanionBuilder =
       Value<double?> averageHeartRate,
       Value<double?> elevationGain,
       Value<String?> summaryPolyline,
+      Value<String?> polyline,
     });
 
 class $$ActivitiesTableFilterComposer
@@ -719,6 +770,11 @@ class $$ActivitiesTableFilterComposer
 
   ColumnFilters<String> get summaryPolyline => $composableBuilder(
     column: $table.summaryPolyline,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get polyline => $composableBuilder(
+    column: $table.polyline,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -781,6 +837,11 @@ class $$ActivitiesTableOrderingComposer
     column: $table.summaryPolyline,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get polyline => $composableBuilder(
+    column: $table.polyline,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ActivitiesTableAnnotationComposer
@@ -831,6 +892,9 @@ class $$ActivitiesTableAnnotationComposer
     column: $table.summaryPolyline,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get polyline =>
+      $composableBuilder(column: $table.polyline, builder: (column) => column);
 }
 
 class $$ActivitiesTableTableManager
@@ -871,6 +935,7 @@ class $$ActivitiesTableTableManager
                 Value<double?> averageHeartRate = const Value.absent(),
                 Value<double?> elevationGain = const Value.absent(),
                 Value<String?> summaryPolyline = const Value.absent(),
+                Value<String?> polyline = const Value.absent(),
               }) => ActivitiesCompanion(
                 id: id,
                 name: name,
@@ -882,6 +947,7 @@ class $$ActivitiesTableTableManager
                 averageHeartRate: averageHeartRate,
                 elevationGain: elevationGain,
                 summaryPolyline: summaryPolyline,
+                polyline: polyline,
               ),
           createCompanionCallback:
               ({
@@ -895,6 +961,7 @@ class $$ActivitiesTableTableManager
                 Value<double?> averageHeartRate = const Value.absent(),
                 Value<double?> elevationGain = const Value.absent(),
                 Value<String?> summaryPolyline = const Value.absent(),
+                Value<String?> polyline = const Value.absent(),
               }) => ActivitiesCompanion.insert(
                 id: id,
                 name: name,
@@ -906,6 +973,7 @@ class $$ActivitiesTableTableManager
                 averageHeartRate: averageHeartRate,
                 elevationGain: elevationGain,
                 summaryPolyline: summaryPolyline,
+                polyline: polyline,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
