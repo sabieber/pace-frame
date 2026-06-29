@@ -47,6 +47,29 @@ class FrameConfigNotifier extends Notifier<FrameConfig> {
       ],
     );
   }
+
+  void scaleWidget(int id, double scale) {
+    state = state.copyWith(
+      widgets: [
+        for (final widget in state.widgets)
+          if (widget.id == id) widget.copyWith(scale: scale) else widget,
+      ],
+    );
+  }
+
+  /// Updates a widget's [scale] and top-left [position] together so a
+  /// center-anchored resize commits in a single rebuild.
+  void resizeWidget(int id, double scale, Offset position) {
+    state = state.copyWith(
+      widgets: [
+        for (final widget in state.widgets)
+          if (widget.id == id)
+            widget.copyWith(scale: scale, position: position)
+          else
+            widget,
+      ],
+    );
+  }
 }
 
 final frameConfigProvider = NotifierProvider<FrameConfigNotifier, FrameConfig>(

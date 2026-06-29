@@ -51,14 +51,16 @@ class FrameWidget {
     required this.type,
     Offset? position,
     this.trimEndpoints = true,
+    this.scale = 1.0,
   }) : id = _nextId++,
-       position = position ?? const Offset(0.5, 0.5);
+        position = position ?? const Offset(0.5, 0.5);
 
   FrameWidget._({
     required this.id,
     required this.type,
     required this.position,
     required this.trimEndpoints,
+    required this.scale,
   });
 
   static int _nextId = 0;
@@ -67,17 +69,20 @@ class FrameWidget {
   final FrameWidgetType type;
   final Offset position;
   final bool trimEndpoints;
+  final double scale;
 
   FrameWidget copyWith({
     FrameWidgetType? type,
     Offset? position,
     bool? trimEndpoints,
+    double? scale,
   }) {
     return FrameWidget._(
       id: id,
       type: type ?? this.type,
       position: position ?? this.position,
       trimEndpoints: trimEndpoints ?? this.trimEndpoints,
+      scale: scale ?? this.scale,
     );
   }
 }

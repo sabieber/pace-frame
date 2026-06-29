@@ -22,6 +22,16 @@
 /// `[0, frameWidth - widgetWidth]` × `[0, frameHeight - widgetHeight]`
 /// so it cannot be dragged outside the frame.
 ///
+/// **Resize**: a grip handle in the bottom-right corner of each widget
+/// (visible in edit mode) allows uniform scaling via drag. The scale is
+/// anchored at the widget's center (which stays fixed — the top-left
+/// [position] is updated each frame to compensate) and clamped to
+/// [_kMinScale]–[_kMaxScale] as well as the frame bounds, so growth is
+/// blocked once any edge reaches the frame. The scale factor is passed
+/// down into the content widgets so they lay out at their true scaled
+/// size — no paint-only [Transform], so the layout box, chrome buttons,
+/// and hit-test region all track the scaled size.
+///
 /// ## Export
 ///
 /// Export disables [_editMode], waits for a frame paint, captures the
@@ -85,6 +95,26 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
 
   /// Rendered size of the currently dragged widget.
   Size _dragWidgetSize = Size.zero;
+
+  // -- resize state ---------------------------------------------------------
+
+  /// ID of the widget currently being resized, or null.
+  int? _resizingId;
+
+  /// Scale of the widget at the moment the resize gesture started.
+  double _resizeStartScale = 1.0;
+
+  /// Unscaled base size of the widget being resized.
+  Size _resizeBaseSize = Size.zero;
+
+  /// Pixel center of the widget being resized (fixed during resize so the
+  /// widget grows/shrinks symmetrically around it).
+  double _resizeCenterX = 0;
+  double _resizeCenterY = 0;
+
+  /// Initial distance from the center to the finger at resize start, used
+  /// to derive the scale ratio.
+  double _resizeStartDistance = 0;
 
   // -- snap guides ----------------------------------------------------------
 
@@ -222,25 +252,42 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
 
   /// Wraps a widget in a [Positioned] + [GestureDetector] that
   /// handles drag-and-drop with bounds clamping and snap guide display.
+  /// The widget's [scale] is passed into the content so it lays out at
+  /// its true scaled size.
+  ///
+  /// Edit-mode controls (delete, route settings, resize handle) sit in a
+  /// constant-width gutter ([_kChromeGutter]) around the content. The
+  /// surrounding [Positioned] is shifted left/up by the gutter so the
+  /// content's visual top-left still lands at `position * logicalSize`.
+  /// Because the chrome lives **inside** the gutter — and therefore
+  /// inside the gesture's hit-test bounds — it stays tappable at any
+  /// scale, and tracks the content as it grows because the layout box
+  /// reflects the real scaled size.
+  ///
+  /// The [GlobalKey] is attached to the content widget so that
+  /// `findRenderObject()` returns its rendered (scaled) size for drag
+  /// clamping, snapping, and resize calculations.
   Widget _buildDraggableWidget(
-    FrameWidget widget,
+    FrameWidget frameWidget,
     Size logicalSize, {
     String? polyline,
     Size? routeWidgetSize,
   }) {
-    final baseDx = widget.position.dx * logicalSize.width;
-    final baseDy = widget.position.dy * logicalSize.height;
-    final dx = widget.id == _draggingId ? baseDx + _dragDx : baseDx;
-    final dy = widget.id == _draggingId ? baseDy + _dragDy : baseDy;
+    final baseDx = frameWidget.position.dx * logicalSize.width;
+    final baseDy = frameWidget.position.dy * logicalSize.height;
+    final dx = frameWidget.id == _draggingId ? baseDx + _dragDx : baseDx;
+    final dy = frameWidget.id == _draggingId ? baseDy + _dragDy : baseDy;
 
-    final key = _widgetKeys.putIfAbsent(widget.id, GlobalKey.new);
+    final key = _widgetKeys.putIfAbsent(frameWidget.id, GlobalKey.new);
+    final scale = frameWidget.scale;
 
     return Positioned(
-      key: ValueKey(widget.id),
-      left: dx,
-      top: dy,
+      key: ValueKey(frameWidget.id),
+      left: dx - _kChromeGutter,
+      top: dy - _kChromeGutter,
       child: GestureDetector(
-        onPanStart: (_) => _onDragStart(widget.id, key),
+        behavior: HitTestBehavior.opaque,
+        onPanStart: (_) => _onDragStart(frameWidget.id, key),
         onPanUpdate: (details) => _onDragUpdate(
           details,
           baseDx: baseDx,
@@ -248,52 +295,132 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
           logicalSize: logicalSize,
         ),
         onPanEnd: (_) => _onDragEnd(
-          widget.id,
+          frameWidget.id,
           baseDx: baseDx,
           baseDy: baseDy,
           logicalSize: logicalSize,
         ),
-        child: KeyedSubtree(
-          key: key,
-          child: _buildWidgetContent(
-            widget,
-            polyline: polyline,
-            routeWidgetSize: routeWidgetSize,
-          ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(_kChromeGutter),
+              child: _buildWidgetContent(
+                frameWidget,
+                contentKey: key,
+                polyline: polyline,
+                routeWidgetSize: routeWidgetSize,
+                scale: scale,
+              ),
+            ),
+            if (_editMode) ...[
+              Positioned(
+                top: _kChromeGutter - 10,
+                right: _kChromeGutter - 10,
+                child: _buildDeleteButton(frameWidget.id),
+              ),
+              if (frameWidget.type == FrameWidgetType.route)
+                Positioned(
+                  top: _kChromeGutter - 10,
+                  left: _kChromeGutter - 10,
+                  child: _buildSettingsButton(frameWidget.id),
+                ),
+              Positioned(
+                bottom: _kChromeGutter - 12,
+                right: _kChromeGutter - 12,
+                child: _buildResizeHandle(frameWidget.id, logicalSize),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Reads the rendered size of a widget via the render object attached
+  /// to [key].
+  Size _measureBaseSize(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    return (box != null && box.hasSize) ? box.size : Size.zero;
+  }
+
+  Widget _buildDeleteButton(int widgetId) {
+    return GestureDetector(
+      onTap: () =>
+          ref.read(frameConfigProvider.notifier).removeWidget(widgetId),
+      child: Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          color: Colors.red.shade700,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.close, size: 12, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildSettingsButton(int widgetId) {
+    return GestureDetector(
+      onTap: () {
+        final config = ref.read(frameConfigProvider);
+        _showRouteSettings(config, widgetId);
+      },
+      child: Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          color: Colors.blue.shade700,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.settings, size: 12, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildResizeHandle(int widgetId, Size logicalSize) {
+    return GestureDetector(
+      onPanStart: (details) =>
+          _onResizeStart(widgetId, logicalSize, details.globalPosition),
+      onPanUpdate: (details) => _onResizeUpdate(details, logicalSize),
+      onPanEnd: (_) => _onResizeEnd(),
+      child: Container(
+        width: 24,
+        height: 24,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: CustomPaint(
+          size: const Size(12, 12),
+          painter: _ResizeGripPainter(),
         ),
       ),
     );
   }
 
   Widget _buildWidgetContent(
-    FrameWidget widget, {
+    FrameWidget frameWidget, {
+    required Key contentKey,
+    required double scale,
     String? polyline,
     Size? routeWidgetSize,
   }) {
-    if (widget.type == FrameWidgetType.route) {
+    if (frameWidget.type == FrameWidgetType.route) {
       return RouteWidget(
+        key: contentKey,
         polyline: polyline!,
-        size: routeWidgetSize!,
-        trimEndpoints: widget.trimEndpoints,
+        size: routeWidgetSize! * scale,
+        trimEndpoints: frameWidget.trimEndpoints,
         editMode: _editMode,
-        onDelete: _editMode
-            ? () => ref.read(frameConfigProvider.notifier).removeWidget(widget.id)
-            : null,
-        onSettings: _editMode
-            ? () {
-                final config = ref.read(frameConfigProvider);
-                _showRouteSettings(config, widget.id);
-              }
-            : null,
       );
     }
     return StatBlockWidget(
-      label: _labelFor(widget.type),
-      value: _valueFor(widget.type),
-      editMode: _editMode,
-      onDelete: _editMode
-          ? () => ref.read(frameConfigProvider.notifier).removeWidget(widget.id)
-          : null,
+      key: contentKey,
+      label: _labelFor(frameWidget.type),
+      value: _valueFor(frameWidget.type),
+      scale: scale,
     );
   }
 
@@ -397,6 +524,111 @@ class _FrameEditorScreenState extends ConsumerState<FrameEditorScreen> {
       _draggingId = null;
       _snapGuides = const [];
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Resize
+  // ---------------------------------------------------------------------------
+
+  void _onResizeStart(int id, Size logicalSize, Offset fingerGlobal) {
+    final frameWidget = ref
+        .read(frameConfigProvider)
+        .widgets
+        .firstWhere((widget) => widget.id == id);
+
+    final key = _widgetKeys[id];
+    final renderedSize = key != null ? _measureBaseSize(key) : Size.zero;
+    final startScale = frameWidget.scale;
+    final baseSize = startScale > 0
+        ? Size(renderedSize.width / startScale, renderedSize.height / startScale)
+        : renderedSize;
+
+    final centerX =
+        frameWidget.position.dx * logicalSize.width + renderedSize.width / 2;
+    final centerY =
+        frameWidget.position.dy * logicalSize.height + renderedSize.height / 2;
+
+    final renderBox =
+        _boundaryKey.currentContext?.findRenderObject() as RenderBox?;
+    final origin = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final fingerLocal = fingerGlobal - origin;
+
+    setState(() {
+      _resizingId = id;
+      _resizeStartScale = startScale;
+      _resizeBaseSize = baseSize;
+      _resizeCenterX = centerX;
+      _resizeCenterY = centerY;
+      _resizeStartDistance =
+          (fingerLocal - Offset(centerX, centerY)).distance;
+    });
+  }
+
+  void _onResizeUpdate(DragUpdateDetails details, Size logicalSize) {
+    if (_resizingId == null || _resizeStartDistance <= 0) return;
+
+    final renderBox =
+        _boundaryKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final origin = renderBox.localToGlobal(Offset.zero);
+    final finger = details.globalPosition - origin;
+
+    final currentDistance =
+        (finger - Offset(_resizeCenterX, _resizeCenterY)).distance;
+    final rawScale =
+        _resizeStartScale * currentDistance / _resizeStartDistance;
+    final clampedScale = _clampScale(
+      rawScale,
+      _resizeBaseSize,
+      _resizeCenterX,
+      _resizeCenterY,
+      logicalSize,
+    );
+
+    final left = _resizeCenterX - _resizeBaseSize.width * clampedScale / 2;
+    final top = _resizeCenterY - _resizeBaseSize.height * clampedScale / 2;
+
+    ref.read(frameConfigProvider.notifier).resizeWidget(
+      _resizingId!,
+      clampedScale,
+      Offset(left / logicalSize.width, top / logicalSize.height),
+    );
+  }
+
+  void _onResizeEnd() {
+    setState(() => _resizingId = null);
+  }
+
+  /// Clamps [scale] to [_kMinScale]–[_kMaxScale] and shrinks it further if
+  /// growing the center-anchored widget would push any edge past the
+  /// frame bounds, so growth stops once an edge reaches the frame.
+  double _clampScale(
+    double scale,
+    Size baseSize,
+    double centerX,
+    double centerY,
+    Size logicalSize,
+  ) {
+    var clamped = scale.clamp(_kMinScale, _kMaxScale);
+
+    if (baseSize.width > 0 && baseSize.height > 0) {
+      final maxScaleLeft = centerX * 2 / baseSize.width;
+      final maxScaleRight = (logicalSize.width - centerX) * 2 / baseSize.width;
+      final maxScaleTop = centerY * 2 / baseSize.height;
+      final maxScaleBottom =
+          (logicalSize.height - centerY) * 2 / baseSize.height;
+      final maxScale = [
+        maxScaleLeft,
+        maxScaleRight,
+        maxScaleTop,
+        maxScaleBottom,
+      ].reduce((value, element) => value < element ? value : element);
+      if (clamped > maxScale) {
+        clamped = maxScale.clamp(_kMinScale, _kMaxScale);
+      }
+    }
+
+    return clamped;
   }
 
   // ---------------------------------------------------------------------------
@@ -929,6 +1161,18 @@ const _kSnapOnsetThreshold = 8.0;
 /// Route widget size as a fraction of the frame's logical width.
 const _kRouteSizeRatio = 0.55;
 
+/// Transparent gutter (px) around each widget's content that houses the
+/// edit-mode chrome (delete, settings, resize handle). Wide enough that
+/// the corner buttons sit inside the gesture's hit-test bounds and stay
+/// tappable. Must be ≥ 12 to fit the resize grip.
+const _kChromeGutter = 14.0;
+
+/// Minimum allowed widget scale (40% of base size).
+const _kMinScale = 0.4;
+
+/// Maximum allowed widget scale (200% of base size).
+const _kMaxScale = 2.0;
+
 /// Axis of a snap guide line.
 enum _SnapAxis { vertical, horizontal }
 
@@ -986,4 +1230,32 @@ class _SnapGuidePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SnapGuidePainter old) => true;
+}
+
+/// Draws a diagonal grip pattern (three short lines) indicating a
+/// resize affordance in the bottom-right corner of a widget.
+class _ResizeGripPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.8)
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    final lines = [
+      Offset(size.width, size.height * 0.3),
+      Offset(size.width * 0.3, size.height),
+      Offset(size.width, size.height * 0.55),
+      Offset(size.width * 0.55, size.height),
+      Offset(size.width, size.height * 0.8),
+      Offset(size.width * 0.8, size.height),
+    ];
+
+    for (var index = 0; index < lines.length; index += 2) {
+      canvas.drawLine(lines[index], lines[index + 1], paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ResizeGripPainter old) => false;
 }
